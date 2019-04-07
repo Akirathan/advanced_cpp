@@ -69,6 +69,12 @@ public:
 
     }
 
+    /// Returns bool whether given size fits in some small bin.
+    bool fits_in_small_bin(size_t count)
+    {
+        return contains_bin_with_chunk_size(size_in_bytes(count));
+    }
+
 private:
 
     struct bin_t {
