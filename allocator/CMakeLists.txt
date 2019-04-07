@@ -22,3 +22,5 @@ add_executable(matrix_test
         tests/matrix_test.cpp
         )
 
+# Include unit tests project
+include(unit_tests.cmake)
