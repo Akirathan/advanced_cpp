@@ -3,6 +3,9 @@
 #include <tuple>
 #include "allocator_exception.hpp"
 
+template <typename T, typename HeapHolder> class inblock_allocator;
+
+
 struct chunk_header_t {
     chunk_header_t *prev;
     chunk_header_t *next;
@@ -135,6 +138,7 @@ template<typename T, typename HeapHolder>
 class inblock_allocator {
 public:
     using value_type = T;
+    static constexpr size_t type_size = sizeof(T);
 
     T * allocate(size_t n)
     {
