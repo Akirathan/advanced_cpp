@@ -35,7 +35,7 @@ public:
     {
         for (size_t i = 0; i < bins.size(); ++i) {
             size_t chunk_size = min_chunk_size + i * gap_between_bins;
-            bins[i] = std::make_pair(chunk_size, nullptr);
+            bins[i] = bin_t{chunk_size, nullptr};
         }
     }
 
@@ -50,7 +50,35 @@ public:
     }
 
 private:
-    std::array<std::pair<size_t, chunk_t *>, bin_count> bins;
+
+    struct bin_t {
+        size_t chunk_sizes;
+        chunk_t *first_chunk;
+    };
+
+    std::array<bin_t, bin_count> bins;
+
+
+    bool contains_bin_with_chunk_size(size_t chunk_size) const
+    {
+        for (auto &&bin : bins) {
+            if (bin.chunk_sizes == chunk_size) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    size_t size_in_bytes(size_t count) const
+    {
+        return count * type_size;
+    }
+
+    chunk_t * find_free_chunk(const bin_t *bin) const
+    {
+
+    }
+
 };
 
 class LargeBin {
