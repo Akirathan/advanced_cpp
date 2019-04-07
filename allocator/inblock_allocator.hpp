@@ -10,10 +10,14 @@ struct chunk_header_t {
     bool used;
 };
 
+struct chunk_footer_t {
+    size_t size;
+};
+
 struct chunk_t {
     chunk_header_t header;
     void *data;
-    size_t size;
+    chunk_footer_t footer;
 };
 
 constexpr size_t header_size = sizeof(chunk_header_t);
