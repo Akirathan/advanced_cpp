@@ -57,12 +57,12 @@ public:
         }
 
         bin_t &bin = get_bin_with_chunk_size(num_bytes);
-        chunk_t *free_chunk = find_free_chunk_in_bin(bin.first_chunk);
+        chunk_t *free_chunk = find_free_chunk_in_bin(bin);
         if (free_chunk) {
             return allocator.use_chunk(free_chunk);
         }
         else {
-            return allocate_in_bin_with_higher_chunk_size(bin);
+            return allocate_in_bin_with_higher_chunk_size(num_bytes);
         }
     }
 
@@ -122,12 +122,13 @@ private:
         return count * type_size;
     }
 
-    chunk_t * find_free_chunk_in_bin(const bin_t *bin)
+    chunk_t * find_free_chunk_in_bin(const bin_t &bin)
     {
-        assert(bin != nullptr);
+
     }
 
     /// Finds first free chunk with size greater than @param num_bytes.
+    /// If there is no such chunk, nullptr is returned.
     chunk_t * find_smallest_free_chunk(size_t num_bytes)
     {
 
@@ -217,7 +218,7 @@ public:
     }
 
     /// Allocates the chunk for user.
-    void use_chunk(chunk_t *chunk)
+    T * use_chunk(chunk_t *chunk)
     {
         assert(chunk != nullptr);
     }
