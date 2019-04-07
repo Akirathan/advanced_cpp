@@ -26,11 +26,6 @@ struct chunk_t {
 constexpr size_t header_size = sizeof(chunk_header_t);
 
 
-/// Allocates the chunk for user.
-void use_chunk(chunk_t *chunk)
-{
-
-}
 
 
 template <typename T, typename HeapHolder>
@@ -143,6 +138,12 @@ public:
     T * allocate(size_t n)
     {
 
+    }
+
+    /// Allocates the chunk for user.
+    void use_chunk(chunk_t *chunk)
+    {
+        assert(chunk != nullptr);
     }
 
 private:
