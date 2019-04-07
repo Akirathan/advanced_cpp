@@ -1,13 +1,89 @@
+#include <array>
 #include <cstddef>
+#include <tuple>
+
+struct chunk_header_t {
+    chunk_header_t *prev;
+    chunk_header_t *next;
+    size_t size;
+    bool used;
+};
+
+struct chunk_t {
+    chunk_header_t header;
+    void *data;
+    size_t size;
+};
+
+constexpr size_t header_size = sizeof(chunk_header_t);
+
+
+template <typename T, typename HeapHolder>
+class SmallBins {
+public:
+    static constexpr size_t gap_between_bins = 8;
+    static constexpr size_t bin_count = 5;
+    static constexpr size_t min_chunk_size = 16;
+    static constexpr size_t max_chunk_size = min_chunk_size + (bin_count * gap_between_bins);
+
+    SmallBins()
+    {
+        for (size_t i = 0; i < bins.size(); ++i) {
+            size_t chunk_size = min_chunk_size + i * gap_between_bins;
+            bins[i] = std::make_pair(chunk_size, nullptr);
+        }
+    }
+
+    T * alloc(size_t size)
+    {
+
+    }
+
+    void free(void *ptr)
+    {
+
+    }
+
+private:
+    std::array<std::pair<size_t, chunk_t *>, bin_count> bins;
+};
+
+class LargeBin {
+
+};
+
+class UnsortedBin {
+
+};
+
 
 class inblock_allocator_heap {
-    // ...your static data here...
-    void operator()(void *ptr, size_t n_bytes) {
+public:
+    static const void *start_addr;
+    static size_t size;
 
+    void operator()(void *ptr, size_t n_bytes) {
+        start_addr = ptr;
+        size = n_bytes;
     };
+
+private:
+
 };
+
 
 template<typename T, typename HeapHolder>
 class inblock_allocator {
-    // ...your solution here...
+public:
+    using value_type = T;
+
+    T * allocate(size_t n)
+    {
+
+    }
+
+private:
+    SmallBins<T, HeapHolder> small_bins;
+    LargeBin large_bin;
+    UnsortedBin unsorted_bin;
 };
