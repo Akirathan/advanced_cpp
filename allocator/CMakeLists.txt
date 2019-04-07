@@ -5,6 +5,7 @@ add_compile_options("-Wall" "-Wextra")
 
 # My main
 add_executable(allocator
+        allocator_exception.hpp
         inblock_allocator.hpp
         main.cpp
         )

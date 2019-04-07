@@ -1,6 +1,7 @@
 #include <array>
 #include <cstddef>
 #include <tuple>
+#include "allocator_exception.hpp"
 
 struct chunk_header_t {
     chunk_header_t *prev;
