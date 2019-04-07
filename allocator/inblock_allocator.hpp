@@ -30,6 +30,7 @@ public:
     static constexpr size_t bin_count = 5;
     static constexpr size_t min_chunk_size = 16;
     static constexpr size_t max_chunk_size = min_chunk_size + (bin_count * gap_between_bins);
+    static constexpr size_t type_size = inblock_allocator<T, HeapHolder>::type_size;
 
     SmallBins()
     {
@@ -39,9 +40,21 @@ public:
         }
     }
 
-    T * alloc(size_t size)
+    T * alloc(size_t count)
     {
+        const size_t num_bytes = size_in_bytes(count);
+        if (!contains_bin_with_chunk_size(num_bytes)) {
+            throw AllocatorException{"Wrong count specified"};
+        }
 
+        for(auto &&bin : bins) {
+            if (bin.chunk_sizes == num_bytes) {
+                chunk_t *free_chunk = find_free_chunk(bin.first_chunk);
+                if (free_chunk) {
+                    use_chunk(free_chunk);
+                }
+            }
+        }
     }
 
     void free(void *ptr)
