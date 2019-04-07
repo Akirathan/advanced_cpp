@@ -40,8 +40,7 @@ public:
     static constexpr size_t max_chunk_size = min_chunk_size + (bin_count * gap_between_bins);
     static constexpr size_t type_size = inblock_allocator<T, HeapHolder>::type_size;
 
-    explicit SmallBins(inblock_allocator<T, HeapHolder> &allocator)
-        : allocator{allocator}
+    explicit SmallBins()
     {
         for (size_t i = 0; i < bins.size(); ++i) {
             size_t chunk_size = min_chunk_size + i * gap_between_bins;
@@ -49,7 +48,7 @@ public:
         }
     }
 
-    T * alloc(size_t count)
+    chunk_t * alloc(size_t count)
     {
         const size_t num_bytes = size_in_bytes(count);
         if (!contains_bin_with_chunk_size(num_bytes)) {
@@ -59,7 +58,7 @@ public:
         bin_t &bin = get_bin_with_chunk_size(num_bytes);
         chunk_t *free_chunk = find_free_chunk_in_bin(bin);
         if (free_chunk) {
-            return allocator.use_chunk(free_chunk);
+            return free_chunk;
         }
         else {
             return allocate_in_bin_with_higher_chunk_size(num_bytes);
@@ -84,7 +83,6 @@ private:
         chunk_t *first_chunk;
     };
     std::array<bin_t, bin_count> bins;
-    inblock_allocator<T, HeapHolder> &allocator;
 
 
     bool contains_bin_with_chunk_size(size_t chunk_size) const
@@ -104,17 +102,14 @@ private:
 
     }
 
-    T * allocate_in_bin_with_higher_chunk_size(size_t num_bytes)
+    chunk_t * allocate_in_bin_with_higher_chunk_size(size_t num_bytes)
     {
         chunk_t *new_chunk = nullptr;
         chunk_t *bigger_free_chunk = find_smallest_free_chunk(num_bytes);
         if (bigger_free_chunk) {
             new_chunk = split(bigger_free_chunk, num_bytes);
         }
-        else {
-            new_chunk = allocator.get_chunk(num_bytes);
-        }
-        return allocator.use_chunk(new_chunk);
+        return new_chunk;
     }
 
     size_t size_in_bytes(size_t count) const
@@ -203,12 +198,18 @@ public:
     using value_type = T;
     static constexpr size_t type_size = sizeof(T);
 
-    inblock_allocator()
-        : small_bins{*this}
-    {}
+    inblock_allocator() = default;
 
     T * allocate(size_t n)
     {
+        T *allocated_space = nullptr;
+        if (small_bins.fits_in_small_bin(n)) {
+            allocated_space = allocate_in_small_bins(n);
+            if (allocated_space) {
+                return allocated_space;
+            }
+            // Try to take chunk from unsorted_bin.
+        }
 
     }
 
@@ -227,4 +228,12 @@ private:
     SmallBins<T, HeapHolder> small_bins;
     LargeBin large_bin;
     UnsortedBin<T, HeapHolder> unsorted_bin;
+
+    T * allocate_in_small_bins(size_t n)
+    {
+        chunk_t *allocated_chunk = small_bins.alloc(n);
+        if (!allocated_chunk) {
+
+        }
+    }
 };
