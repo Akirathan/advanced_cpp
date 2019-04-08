@@ -11,24 +11,16 @@
 template <typename T, typename HeapHolder> class inblock_allocator;
 template <typename T, typename HeapHolder> class UnsortedBin;
 template <typename T, typename HeapHolder> class SmallBins;
-struct chunk_t;
 
 struct chunk_header_t {
-    chunk_t *prev;
-    chunk_t *next;
-    size_t size;
+    chunk_header_t *prev;
+    chunk_header_t *next;
+    /// Payload must not be zero, unless this is the last (delimiter) chunk.
+    size_t payload_size;
     bool used;
 };
 
-struct chunk_footer_t {
-    size_t size;
-};
-
-struct chunk_t {
-    chunk_header_t header;
-    void *data;
-    chunk_footer_t footer;
-};
+using chunk_t = chunk_header_t;
 
 constexpr size_t align_size(size_t size, size_t alignment) noexcept
 {
@@ -38,9 +30,9 @@ constexpr size_t align_size(size_t size, size_t alignment) noexcept
 
 constexpr size_t alignment = 8;
 constexpr size_t chunk_header_size = sizeof(chunk_header_t);
-constexpr size_t chunk_footer_size = sizeof(chunk_footer_t);
+constexpr size_t chunk_header_size_with_padding = align_size(chunk_header_size, alignment);
 constexpr size_t min_payload_size = 16;
-constexpr size_t min_chunk_size = align_size(chunk_header_size + chunk_footer_size + min_payload_size, alignment);
+constexpr size_t min_chunk_size = align_size(chunk_header_size_with_padding + min_payload_size, alignment);
 
 inline bool is_aligned(intptr_t ptr)
 {
@@ -52,18 +44,54 @@ inline size_t diff(intptr_t ptr, intptr_t intptr)
     return std::abs(ptr - intptr);
 }
 
-inline chunk_t * initialize_chunk(intptr_t start_addr, size_t size)
+/// Returns true if the chunk is the last delimiter chunk in the memory.
+inline bool is_last_chunk_in_mem(const chunk_t *chunk)
 {
-    assert(size >= min_chunk_size);
-    assert(is_aligned(start_addr));
-    chunk_header_t header{nullptr, nullptr, size, false};
-    chunk_footer_t footer{size};
-    chunk_t chunk{header, nullptr, footer};
+    return chunk->payload_size == 0;
+}
 
-    chunk_t *mem_addr = reinterpret_cast<chunk_t *>(start_addr);
-    *mem_addr = chunk;
+/**
+ * Saves one chunk into memory.
+ * @param start_addr
+ * @param payload_size Size of payload
+ * @return
+ */
+inline chunk_t * initialize_chunk(intptr_t start_addr, size_t payload_size)
+{
+    assert(payload_size >= min_payload_size);
+    chunk_header_t header{nullptr, nullptr, payload_size, false};
+
+    auto mem_addr = reinterpret_cast<chunk_header_t *>(start_addr);
+    *mem_addr = header;
     return mem_addr;
 }
+
+inline void * get_chunk_data(const chunk_t *chunk)
+{
+    assert(chunk != nullptr);
+    assert(!is_last_chunk_in_mem(chunk));
+    auto ptr = reinterpret_cast<intptr_t>(chunk);
+    ptr += chunk_header_size_with_padding;
+    return reinterpret_cast<void *>(ptr);
+}
+
+/// Gets total size of the chunk - not just size of its payload.
+inline size_t get_chunk_size(const chunk_t *chunk)
+{
+    assert(chunk != nullptr);
+    return chunk_header_size_with_padding + chunk->payload_size;
+}
+
+inline chunk_t * next_chunk_in_mem(const chunk_t *chunk)
+{
+    assert(chunk != nullptr);
+    assert(!is_last_chunk_in_mem(chunk));
+    auto ptr = reinterpret_cast<intptr_t>(chunk);
+    ptr += chunk_header_size_with_padding;
+    ptr += chunk->payload_size;
+    return reinterpret_cast<chunk_t *>(ptr);
+}
+
 
 inline void link_chunks(const std::vector<chunk_t *> &chunks)
 {
@@ -75,8 +103,8 @@ inline void link_chunks(chunk_t *first_chunk, chunk_t *second_chunk)
     assert(first_chunk != nullptr);
     assert(second_chunk != nullptr);
 
-    first_chunk->header.next = second_chunk;
-    second_chunk->header.prev = first_chunk;
+    first_chunk->next = second_chunk;
+    second_chunk->prev = first_chunk;
 }
 
 
