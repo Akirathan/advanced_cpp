@@ -26,9 +26,17 @@ struct chunk_t {
     chunk_footer_t footer;
 };
 
-constexpr size_t header_size = sizeof(chunk_header_t);
-constexpr size_t chunk_size = sizeof(chunk_t);
+constexpr size_t align_size(size_t size, size_t alignment) noexcept
+{
+    size += size % alignment;
+    return size;
+}
 
+constexpr size_t alignment = 8;
+constexpr size_t chunk_header_size = sizeof(chunk_header_t);
+constexpr size_t chunk_footer_size = sizeof(chunk_footer_t);
+constexpr size_t min_payload_size = 16;
+constexpr size_t min_chunk_size = align_size(chunk_header_size + chunk_footer_size + min_payload_size, alignment);
 
 
 
@@ -198,7 +206,7 @@ public:
 
     void operator()(void *ptr, size_t n_bytes)
     {
-        if (n_bytes < chunk_size) {
+        if (n_bytes < min_chunk_size) {
             throw AllocatorException{"More memory needed."};
         }
 
@@ -209,7 +217,6 @@ public:
     }
 
 private:
-    static constexpr size_t alignment = 8;
     static intptr_t start_addr;
     static intptr_t end_addr;
     static size_t size;
