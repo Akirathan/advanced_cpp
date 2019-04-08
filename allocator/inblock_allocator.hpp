@@ -1,3 +1,6 @@
+#ifndef INBLOCK_ALLOCATOR_HPP_
+#define INBLOCK_ALLOCATOR_HPP_
+
 #include <array>
 #include <cstddef>
 #include <tuple>
@@ -39,17 +42,17 @@ constexpr size_t chunk_footer_size = sizeof(chunk_footer_t);
 constexpr size_t min_payload_size = 16;
 constexpr size_t min_chunk_size = align_size(chunk_header_size + chunk_footer_size + min_payload_size, alignment);
 
-bool is_aligned(intptr_t ptr)
+inline bool is_aligned(intptr_t ptr)
 {
     return ptr % alignment == 0;
 }
 
-size_t diff(intptr_t ptr, intptr_t intptr)
+inline size_t diff(intptr_t ptr, intptr_t intptr)
 {
     return std::abs(ptr - intptr);
 }
 
-chunk_t * initialize_chunk(intptr_t start_addr, size_t size)
+inline chunk_t * initialize_chunk(intptr_t start_addr, size_t size)
 {
     assert(size >= min_chunk_size);
     assert(is_aligned(start_addr));
@@ -62,12 +65,12 @@ chunk_t * initialize_chunk(intptr_t start_addr, size_t size)
     return mem_addr;
 }
 
-void link_chunks(const std::vector<chunk_t *> &chunks)
+inline void link_chunks(const std::vector<chunk_t *> &chunks)
 {
 
 }
 
-void link_chunks(chunk_t *first_chunk, chunk_t *second_chunk)
+inline void link_chunks(chunk_t *first_chunk, chunk_t *second_chunk)
 {
     assert(first_chunk != nullptr);
     assert(second_chunk != nullptr);
@@ -351,7 +354,12 @@ public:
     using value_type = T;
     static constexpr size_t type_size = sizeof(T);
 
-    inblock_allocator() = default;
+    inblock_allocator()
+        : small_bins{count_initial_memory_division().small_bins_start, count_initial_memory_division().small_bins_end}
+    {
+        initialize_memory();
+        //HeapHolder::heap::get_start_addr();
+    }
 
     T * allocate(size_t n)
     {
@@ -378,9 +386,17 @@ public:
     }
 
 private:
+    const intptr_t start_addr = HeapHolder::heap.get_start_addr();
     SmallBins<T, HeapHolder> small_bins;
     LargeBin large_bin;
     UnsortedBin<T, HeapHolder> unsorted_bin;
+
+    struct initial_memory_division_t {
+        intptr_t small_bins_start;
+        intptr_t small_bins_end;
+        intptr_t large_bin_start;
+        intptr_t large_bin_end;
+    };
 
     T * allocate_in_small_bins(size_t n)
     {
@@ -389,4 +405,13 @@ private:
 
         }
     }
+
+    initial_memory_division_t count_initial_memory_division() const
+    {
+
+    }
+    }
 };
+
+
+#endif // INBLOCK_ALLOCATOR_HPP_
