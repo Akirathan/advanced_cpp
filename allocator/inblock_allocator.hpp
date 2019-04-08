@@ -2,16 +2,17 @@
 #include <cstddef>
 #include <tuple>
 #include <cassert>
+#include <vector>
 #include "allocator_exception.hpp"
 
 template <typename T, typename HeapHolder> class inblock_allocator;
 template <typename T, typename HeapHolder> class UnsortedBin;
 template <typename T, typename HeapHolder> class SmallBins;
-
+struct chunk_t;
 
 struct chunk_header_t {
-    chunk_header_t *prev;
-    chunk_header_t *next;
+    chunk_t *prev;
+    chunk_t *next;
     size_t size;
     bool used;
 };
@@ -43,6 +44,38 @@ bool is_aligned(intptr_t ptr)
     return ptr % alignment == 0;
 }
 
+size_t diff(intptr_t ptr, intptr_t intptr)
+{
+    return std::abs(ptr - intptr);
+}
+
+chunk_t * initialize_chunk(intptr_t start_addr, size_t size)
+{
+    assert(size >= min_chunk_size);
+    assert(is_aligned(start_addr));
+    chunk_header_t header{nullptr, nullptr, size, false};
+    chunk_footer_t footer{size};
+    chunk_t chunk{header, nullptr, footer};
+
+    chunk_t *mem_addr = reinterpret_cast<chunk_t *>(start_addr);
+    *mem_addr = chunk;
+    return mem_addr;
+}
+
+void link_chunks(const std::vector<chunk_t *> &chunks)
+{
+
+}
+
+void link_chunks(chunk_t *first_chunk, chunk_t *second_chunk)
+{
+    assert(first_chunk != nullptr);
+    assert(second_chunk != nullptr);
+
+    first_chunk->header.next = second_chunk;
+    second_chunk->header.prev = first_chunk;
+}
+
 
 template <typename T, typename HeapHolder>
 class SmallBins {
@@ -53,12 +86,19 @@ public:
     static constexpr size_t max_chunk_size_for_bins = min_chunk_size_for_bins + (bin_count * gap_between_bins);
     static constexpr size_t type_size = inblock_allocator<T, HeapHolder>::type_size;
 
-    explicit SmallBins()
+    /**
+     * Initializes some small bins with some chunks within the address range given as parameters.
+     * Note that during runtime, the range of small bins may change - given address range is
+     * only for initialization.
+     * @param start_addr
+     * @param end_addr
+     */
+    explicit SmallBins(intptr_t start_addr, intptr_t end_addr)
     {
-        for (size_t i = 0; i < bins.size(); ++i) {
-            size_t chunk_size = min_chunk_size_for_bins + i * gap_between_bins;
-            bins[i] = bin_t{chunk_size, nullptr};
-        }
+        assert(is_aligned(start_addr));
+        assert(is_aligned(end_addr));
+        initialize_bins();
+        initialize_chunks_for_all_bins(start_addr, end_addr);
     }
 
     /// Allocates chunk with exactly count size.
@@ -98,6 +138,55 @@ private:
     };
     std::array<bin_t, bin_count> bins;
 
+
+    void initialize_bins()
+    {
+        for (size_t i = 0; i < bins.size(); ++i) {
+            size_t chunk_size = min_chunk_size_for_bins + i * gap_between_bins;
+            bins[i] = bin_t{chunk_size, nullptr};
+        }
+    }
+
+    void initialize_chunks_for_all_bins(intptr_t start_addr, intptr_t end_addr)
+    {
+        size_t available_size = diff(start_addr, end_addr);
+        auto bin_sizes = count_memory_region_sizes_for_bins(available_size);
+
+        for (size_t i = 0; i < bins.size(); i++) {
+            initialize_bin_with_chunks(bins[i], start_addr, start_addr + bin_sizes[i]);
+            start_addr += bin_sizes[i];
+        }
+    }
+
+    std::array<size_t, bin_count> count_memory_region_sizes_for_bins(size_t available_size) const
+    {
+        std::array<size_t, bin_count> bin_sizes = {};
+        for (size_t &size_for_bin : bin_sizes) {
+            size_for_bin = available_size / bins.size();
+        }
+        // Add rest of size to first bin.
+        bin_sizes[0] += available_size % bins.size();
+        return bin_sizes;
+    }
+
+    void initialize_bin_with_chunks(bin_t &bin, intptr_t start_addr, intptr_t end_addr)
+    {
+        assert(is_aligned(start_addr));
+        assert(is_aligned(end_addr));
+        assert(diff(start_addr, end_addr) % bin.chunk_sizes == 0);
+
+        std::vector<chunk_t *> chunks;
+
+        while (start_addr < end_addr) {
+            size_t chunk_size = bin.chunk_sizes;
+            chunk_t *new_chunk = initialize_chunk(start_addr, chunk_size);
+            chunks.push_back(new_chunk);
+            start_addr += chunk_size;
+        }
+
+        link_chunks(chunks);
+        link_chunks(bin.first_chunk, chunks[0]);
+    }
 
     bool contains_bin_with_chunk_size(size_t chunk_size) const
     {
@@ -253,10 +342,6 @@ private:
         return ptr;
     }
 
-    size_t diff(intptr_t ptr, intptr_t intptr) const
-    {
-        return std::abs(ptr - intptr);
-    }
 };
 
 
