@@ -49,7 +49,8 @@ public:
         }
     }
 
-    chunk_t * alloc(size_t count)
+    /// Allocates chunk with exactly count size.
+    chunk_t * allocate_chunk(size_t count)
     {
         const size_t num_bytes = size_in_bytes(count);
         if (!contains_bin_with_chunk_size(num_bytes)) {
@@ -66,14 +67,14 @@ public:
         }
     }
 
-
+    // TODO: change signature?
     void free(void *ptr)
     {
 
     }
 
     /// Returns bool whether given size fits in some small bin.
-    bool fits_in_small_bin(size_t count)
+    bool fits_in_small_bin(size_t count) const
     {
         return contains_bin_with_chunk_size(size_in_bytes(count));
     }
@@ -278,7 +279,7 @@ private:
 
     T * allocate_in_small_bins(size_t n)
     {
-        chunk_t *allocated_chunk = small_bins.alloc(n);
+        chunk_t *allocated_chunk = small_bins.allocate_chunk(n);
         if (!allocated_chunk) {
 
         }
