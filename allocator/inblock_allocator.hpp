@@ -38,6 +38,10 @@ constexpr size_t chunk_footer_size = sizeof(chunk_footer_t);
 constexpr size_t min_payload_size = 16;
 constexpr size_t min_chunk_size = align_size(chunk_header_size + chunk_footer_size + min_payload_size, alignment);
 
+bool is_aligned(intptr_t ptr)
+{
+    return ptr % alignment == 0;
+}
 
 
 template <typename T, typename HeapHolder>
@@ -234,11 +238,6 @@ private:
         else {
             return find_first_aligned(ptr, direction);
         }
-    }
-
-    bool is_aligned(intptr_t ptr) const
-    {
-        return ptr % alignment;
     }
 
     intptr_t find_first_aligned(intptr_t ptr, Direction direction) const
