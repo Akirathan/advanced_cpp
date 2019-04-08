@@ -45,14 +45,14 @@ class SmallBins {
 public:
     static constexpr size_t gap_between_bins = 8;
     static constexpr size_t bin_count = 5;
-    static constexpr size_t min_chunk_size = 16;
-    static constexpr size_t max_chunk_size = min_chunk_size + (bin_count * gap_between_bins);
+    static constexpr size_t min_chunk_size_for_bins = 16;
+    static constexpr size_t max_chunk_size_for_bins = min_chunk_size_for_bins + (bin_count * gap_between_bins);
     static constexpr size_t type_size = inblock_allocator<T, HeapHolder>::type_size;
 
     explicit SmallBins()
     {
         for (size_t i = 0; i < bins.size(); ++i) {
-            size_t chunk_size = min_chunk_size + i * gap_between_bins;
+            size_t chunk_size = min_chunk_size_for_bins + i * gap_between_bins;
             bins[i] = bin_t{chunk_size, nullptr};
         }
     }
