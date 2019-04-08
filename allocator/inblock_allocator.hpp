@@ -115,7 +115,7 @@ public:
     static constexpr size_t bin_count = 5;
     static constexpr size_t min_chunk_size_for_bins = 16;
     static constexpr size_t max_chunk_size_for_bins = min_chunk_size_for_bins + (bin_count * gap_between_bins);
-    static constexpr size_t type_size = inblock_allocator<T, HeapHolder>::type_size;
+    static constexpr size_t type_size = sizeof(T);
 
     /**
      * Initializes some small bins with some chunks within the address range given as parameters.
