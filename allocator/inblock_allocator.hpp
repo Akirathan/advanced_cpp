@@ -181,9 +181,20 @@ public:
 
 class inblock_allocator_heap {
 public:
-    static intptr_t start_addr;
-    static intptr_t end_addr;
-    static size_t size;
+    static intptr_t get_start_addr()
+    {
+        return start_addr;
+    }
+
+    static intptr_t get_end_addr()
+    {
+        return end_addr;
+    }
+
+    static size_t get_size()
+    {
+        return size;
+    }
 
     void operator()(void *ptr, size_t n_bytes)
     {
@@ -199,6 +210,9 @@ public:
 
 private:
     static constexpr size_t alignment = 8;
+    static intptr_t start_addr;
+    static intptr_t end_addr;
+    static size_t size;
 
     enum Direction {
         downward,
