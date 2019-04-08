@@ -27,6 +27,7 @@ struct chunk_t {
 };
 
 constexpr size_t header_size = sizeof(chunk_header_t);
+constexpr size_t chunk_size = sizeof(chunk_t);
 
 
 
@@ -179,16 +180,62 @@ public:
 
 class inblock_allocator_heap {
 public:
-    static const void *start_addr;
+    static intptr_t start_addr;
+    static intptr_t end_addr;
     static size_t size;
 
-    void operator()(void *ptr, size_t n_bytes) {
-        start_addr = ptr;
-        size = n_bytes;
-    };
+    void operator()(void *ptr, size_t n_bytes)
+    {
+        if (n_bytes < chunk_size) {
+            throw AllocatorException{"More memory needed."};
+        }
+
+        auto intptr = reinterpret_cast<intptr_t>(ptr);
+        start_addr = align_addr(intptr, upward);
+        end_addr = align_addr(start_addr + n_bytes, downward);
+        size = diff(end_addr, start_addr);
+    }
 
 private:
+    static constexpr size_t alignment = 8;
 
+    enum Direction {
+        downward,
+        upward
+    };
+
+    intptr_t align_addr(intptr_t ptr, Direction direction) const
+    {
+        if (is_aligned(ptr)) {
+            return ptr;
+        }
+        else {
+            return find_first_aligned(ptr, direction);
+        }
+    }
+
+    bool is_aligned(intptr_t ptr) const
+    {
+        return ptr % alignment;
+    }
+
+    intptr_t find_first_aligned(intptr_t ptr, Direction direction) const
+    {
+        while (!is_aligned(ptr)) {
+            if (direction == downward) {
+                ptr--;
+            }
+            else if (direction == upward) {
+                ptr++;
+            }
+        }
+        return ptr;
+    }
+
+    size_t diff(intptr_t ptr, intptr_t intptr) const
+    {
+        return std::abs(ptr - intptr);
+    }
 };
 
 
