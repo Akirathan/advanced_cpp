@@ -98,12 +98,11 @@ inline chunk_t * next_chunk_in_mem(const chunk_t *chunk)
     return reinterpret_cast<chunk_t *>(ptr);
 }
 
-
-inline void link_chunks(const std::vector<chunk_t *> &chunks)
-{
-
-}
-
+/**
+ * Links two chunks. The direction matters.
+ * @param first_chunk
+ * @param second_chunk
+ */
 inline void link_chunks(chunk_t *first_chunk, chunk_t *second_chunk)
 {
     assert(first_chunk != nullptr);
@@ -111,6 +110,22 @@ inline void link_chunks(chunk_t *first_chunk, chunk_t *second_chunk)
 
     first_chunk->next = second_chunk;
     second_chunk->prev = first_chunk;
+}
+
+/// Makes cyclic links
+inline void link_chunks(const std::vector<chunk_t *> &chunks)
+{
+    if (chunks.size() <= 1) {
+        return;
+    }
+
+    for (size_t i = 0; i < chunks.size() - 1; ++i) {
+        chunk_t *first_chunk = chunks[i];
+        chunk_t *second_chunk = chunks[i+1];
+        link_chunks(first_chunk, second_chunk);
+    }
+
+    link_chunks(chunks[chunks.size() - 1], chunks[0]);
 }
 
 
