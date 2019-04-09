@@ -199,8 +199,6 @@ public:
         return last_addr;
     }
 
-
-
     /// Allocates chunk with exactly count size.
     chunk_t * allocate_chunk(size_t count)
     {

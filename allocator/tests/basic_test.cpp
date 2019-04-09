@@ -34,7 +34,7 @@ int main ()
 
 	for (size_t rep = 0; rep < 1000; ++rep) {
 
-		Vector<int> v;
+		Vector<int> v; // Constructor of inblock_allocator
 
 		for (size_t i = 0; i < 100000; ++i) v.push_back (i);
 		std::cout << v[rep] << std::endl;
