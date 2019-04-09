@@ -67,6 +67,16 @@ static bool is_chunk_in_initialized_state(const chunk_t *chunk)
     return chunk->payload_size > 0 && chunk->used == 0;
 }
 
+static bool equals_some(const chunk_t *chunk, const std::vector<chunk_t *> &chunks)
+{
+    for (const chunk_t *chunk_item : chunks) {
+        if (chunk_item == chunk) {
+            return true;
+        }
+    }
+    return false;
+}
+
 /**
  * Initialize two chunks by hand a fill them with some magic payload. Then check
  * for consistency of those payloads.
@@ -88,7 +98,7 @@ BOOST_AUTO_TEST_CASE(two_chunks_payloads_consistency_test)
     BOOST_TEST(check_payload_consistency(get_chunk_data(second_chunk), payload_size));
 }
 
-BOOST_AUTO_TEST_CASE(chunk_split_test)
+BOOST_AUTO_TEST_CASE(chunk_one_split_test)
 {
     const size_t mem_size = 160;
     auto [start_addr, end_addr] = get_aligned_memory_region(mem_size);
@@ -107,6 +117,34 @@ BOOST_AUTO_TEST_CASE(chunk_split_test)
 
     // Chunk's payload should be decreased.
     BOOST_TEST(chunk->payload_size < max_payload_size);
+}
+
+/**
+ * Splits one huge chunk into more chunks and checks consistency.
+ */
+BOOST_AUTO_TEST_CASE(chunk_more_splits_test)
+{
+    const size_t mem_size = 1024;
+    auto [start_addr, end_addr] = get_aligned_memory_region(mem_size);
+
+    size_t max_payload_size = mem_size - chunk_header_size;
+    chunk_t *first_chunk = initialize_chunk(start_addr, max_payload_size);
+    BOOST_TEST(first_chunk);
+
+    std::vector<chunk_t *> new_chunks;
+    const size_t new_chunk_payload_size = 16;
+    const size_t number_of_splits = 3;
+    for (size_t i = 0; i < number_of_splits; ++i) {
+        chunk_t *new_chunk = split_chunk(first_chunk, new_chunk_payload_size);
+        BOOST_TEST(new_chunk);
+        new_chunks.push_back(new_chunk);
+    }
+
+    chunk_t *chunk_in_memory = first_chunk;
+    for (size_t i = 0; i < number_of_splits; ++i) {
+        chunk_in_memory = next_chunk_in_mem(chunk_in_memory);
+        BOOST_TEST(equals_some(chunk_in_memory, new_chunks));
+    }
 }
 
 BOOST_AUTO_TEST_CASE(aligned_heap_test)
