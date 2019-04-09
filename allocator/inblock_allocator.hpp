@@ -246,12 +246,6 @@ public:
         }
     }
 
-    // TODO: change signature?
-    void free(void *ptr)
-    {
-
-    }
-
     /// Returns bool whether given size fits in some small bin.
     bool contains_bin_with_chunk_size(size_t payload_size) const
     {
@@ -450,17 +444,6 @@ public:
             // Try to take chunk from unsorted_bin.
         }
 
-    }
-
-    chunk_t * get_chunk(size_t num_bytes)
-    {
-
-    }
-
-    /// Allocates the chunk for user.
-    T * use_chunk(chunk_t *chunk)
-    {
-        assert(chunk != nullptr);
     }
 
 private:
