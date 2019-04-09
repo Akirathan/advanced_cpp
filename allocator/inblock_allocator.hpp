@@ -234,12 +234,9 @@ public:
     }
 
     /// Allocates chunk with exactly count size.
-    chunk_t * allocate_chunk(size_t count)
+    chunk_t * allocate_chunk(size_t num_bytes)
     {
-        const size_t num_bytes = size_in_bytes(count);
-        if (!contains_bin_with_chunk_size(num_bytes)) {
-            throw AllocatorException{"Wrong count specified"}; // TODO: assert?
-        }
+        assert(contains_bin_with_chunk_size(num_bytes));
 
         bin_t &bin = get_bin_with_chunk_size(num_bytes);
         chunk_t *free_chunk = find_free_chunk_in_bin(bin);
@@ -258,9 +255,9 @@ public:
     }
 
     /// Returns bool whether given size fits in some small bin.
-    bool fits_in_small_bin(size_t count) const
+    bool fits_in_small_bin(size_t num_bytes) const
     {
-        return contains_bin_with_chunk_size(size_in_bytes(count));
+        return contains_bin_with_chunk_size(num_bytes);
     }
 
     /**
@@ -322,11 +319,6 @@ private:
             new_chunk = split_chunk(bigger_free_chunk, num_bytes);
         }
         return new_chunk;
-    }
-
-    size_t size_in_bytes(size_t count) const
-    {
-        return count * type_size;
     }
 
     /// Returns nullptr if there is no free chunk.
