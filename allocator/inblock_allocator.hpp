@@ -50,6 +50,12 @@ inline bool is_last_chunk_in_mem(const chunk_t *chunk)
     return chunk->payload_size == 0;
 }
 
+inline bool fits_in_memory_region(intptr_t start_addr, size_t payload_size, intptr_t end_addr)
+{
+    start_addr += chunk_header_size_with_padding + payload_size;
+    return start_addr <= end_addr;
+}
+
 /**
  * Saves one chunk into memory.
  * @param start_addr
@@ -121,16 +127,62 @@ public:
      * Initializes some small bins with some chunks within the address range given as parameters.
      * Note that during runtime, the range of small bins may change - given address range is
      * only for initialization.
+     * SmallBins is not required to fill the whole region with some chunks. There may be a pending
+     * chunk.
      * @param start_addr
      * @param end_addr
      */
-    explicit SmallBins(intptr_t start_addr, intptr_t end_addr)
+    explicit SmallBins()
+        : redundant_chunks{nullptr}
+    {
+        initialize_bins();
+    }
+
+    /**
+     * Initializes small bins in given memory region.
+     * @param start_addr
+     * @param end_addr Highest address.
+     * @return Real address at which the initialization ended, it may be different than end_addr.
+     */
+    intptr_t initialize_memory(intptr_t start_addr, intptr_t end_addr)
     {
         assert(is_aligned(start_addr));
         assert(is_aligned(end_addr));
-        initialize_bins();
-        initialize_chunks_for_all_bins(start_addr, end_addr);
+
+        size_t available_size = diff(start_addr, end_addr);
+
+        std::array<std::vector<chunk_t *>, bin_count> initial_chunks;
+        intptr_t last_addr = start_addr;
+        bool fits_in_memory = fits_in_memory_region(start_addr, bins[0].chunk_sizes, end_addr);
+
+        while (fits_in_memory) {
+            for (size_t i = 0; i < bin_count; i++) {
+                size_t chunk_size = bins[i].chunk_sizes;
+
+                if (!fits_in_memory_region(start_addr, chunk_size, end_addr)) {
+                    fits_in_memory = false;
+                    break;
+                }
+                chunk_t *new_chunk = initialize_chunk(start_addr, chunk_size);
+                initial_chunks[i].push_back(new_chunk);
+
+                last_addr = start_addr;
+                start_addr += get_chunk_size(new_chunk);
+            }
+        }
+
+        for (const std::vector<chunk_t *> &chunks : initial_chunks) {
+            link_chunks(chunks);
+        }
+
+        for (size_t i = 0; i < bins.size(); i++) {
+            bins[i].first_chunk = initial_chunks[i][0];
+        }
+
+        return last_addr;
     }
+
+
 
     /// Allocates chunk with exactly count size.
     chunk_t * allocate_chunk(size_t count)
@@ -162,12 +214,30 @@ public:
         return contains_bin_with_chunk_size(size_in_bytes(count));
     }
 
+    /**
+     * Redundant chunks are chunks that were generated as a residue from some split.
+     * @return
+     */
+    bool contains_redundant_chunks() const
+    {
+        return redundant_chunks != nullptr;
+    }
+
+    chunk_t * get_redundant_chunks()
+    {
+        assert(redundant_chunks != nullptr);
+        auto redundant_chunk = redundant_chunks;
+        redundant_chunks = nullptr;
+        return redundant_chunk;
+    }
+
 private:
     struct bin_t {
         size_t chunk_sizes;
         chunk_t *first_chunk;
     };
     std::array<bin_t, bin_count> bins;
+    chunk_t *redundant_chunks;
 
 
     void initialize_bins()
@@ -176,47 +246,6 @@ private:
             size_t chunk_size = min_chunk_size_for_bins + i * gap_between_bins;
             bins[i] = bin_t{chunk_size, nullptr};
         }
-    }
-
-    void initialize_chunks_for_all_bins(intptr_t start_addr, intptr_t end_addr)
-    {
-        size_t available_size = diff(start_addr, end_addr);
-        auto bin_sizes = count_memory_region_sizes_for_bins(available_size);
-
-        for (size_t i = 0; i < bins.size(); i++) {
-            initialize_bin_with_chunks(bins[i], start_addr, start_addr + bin_sizes[i]);
-            start_addr += bin_sizes[i];
-        }
-    }
-
-    std::array<size_t, bin_count> count_memory_region_sizes_for_bins(size_t available_size) const
-    {
-        std::array<size_t, bin_count> bin_sizes = {};
-        for (size_t &size_for_bin : bin_sizes) {
-            size_for_bin = available_size / bins.size();
-        }
-        // Add rest of size to first bin.
-        bin_sizes[0] += available_size % bins.size();
-        return bin_sizes;
-    }
-
-    void initialize_bin_with_chunks(bin_t &bin, intptr_t start_addr, intptr_t end_addr)
-    {
-        assert(is_aligned(start_addr));
-        assert(is_aligned(end_addr));
-        assert(diff(start_addr, end_addr) % bin.chunk_sizes == 0);
-
-        std::vector<chunk_t *> chunks;
-
-        while (start_addr < end_addr) {
-            size_t chunk_size = bin.chunk_sizes;
-            chunk_t *new_chunk = initialize_chunk(start_addr, chunk_size);
-            chunks.push_back(new_chunk);
-            start_addr += chunk_size;
-        }
-
-        link_chunks(chunks);
-        link_chunks(bin.first_chunk, chunks[0]);
     }
 
     bool contains_bin_with_chunk_size(size_t chunk_size) const
@@ -383,7 +412,6 @@ public:
     static constexpr size_t type_size = sizeof(T);
 
     inblock_allocator()
-        : small_bins{count_initial_memory_division().small_bins_start, count_initial_memory_division().small_bins_end}
     {
         initialize_memory();
         //HeapHolder::heap::get_start_addr();
