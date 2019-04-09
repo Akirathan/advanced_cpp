@@ -232,17 +232,17 @@ public:
     }
 
     /// Allocates chunk with exactly count size.
-    chunk_t * allocate_chunk(size_t num_bytes)
+    chunk_t * allocate_chunk(size_t payload_size)
     {
-        assert(contains_bin_with_chunk_size(num_bytes));
+        assert(contains_bin_with_chunk_size(payload_size));
 
-        bin_t &bin = get_bin_with_chunk_size(num_bytes);
+        bin_t &bin = get_bin_with_chunk_size(payload_size);
         chunk_t *free_chunk = find_free_chunk_in_bin(bin);
         if (free_chunk) {
             return free_chunk;
         }
         else {
-            return allocate_in_bin_with_higher_chunk_size(num_bytes);
+            return allocate_in_bin_with_higher_chunk_size(payload_size);
         }
     }
 
@@ -304,12 +304,12 @@ private:
 
     }
 
-    chunk_t * allocate_in_bin_with_higher_chunk_size(size_t num_bytes)
+    chunk_t * allocate_in_bin_with_higher_chunk_size(size_t payload_size)
     {
         chunk_t *new_chunk = nullptr;
-        chunk_t *bigger_free_chunk = find_smallest_free_chunk(num_bytes);
+        chunk_t *bigger_free_chunk = find_smallest_free_chunk(payload_size);
         if (bigger_free_chunk) {
-            new_chunk = split_chunk(bigger_free_chunk, num_bytes);
+            new_chunk = split_chunk(bigger_free_chunk, payload_size);
         }
         return new_chunk;
     }
@@ -320,9 +320,9 @@ private:
 
     }
 
-    /// Finds first free chunk with size greater than @param num_bytes.
+    /// Finds first free chunk with size greater than payload_size parameter.
     /// If there is no such chunk, nullptr is returned.
-    chunk_t * find_smallest_free_chunk(size_t num_bytes)
+    chunk_t * find_smallest_free_chunk(size_t payload_size)
     {
 
     }
