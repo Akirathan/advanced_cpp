@@ -29,10 +29,10 @@ constexpr size_t align_size(size_t size, size_t alignment) noexcept
 }
 
 constexpr size_t alignment = 8;
-constexpr size_t chunk_header_size = sizeof(chunk_header_t);
-constexpr size_t chunk_header_size_with_padding = align_size(chunk_header_size, alignment);
-constexpr size_t min_payload_size = 16;
-constexpr size_t min_chunk_size = align_size(chunk_header_size_with_padding + min_payload_size, alignment);
+constexpr size_t chunk_header_size_with_padding = align_size(sizeof(chunk_header_t), alignment);
+constexpr size_t chunk_header_size = chunk_header_size_with_padding;
+constexpr size_t min_payload_size = 16; // Must be aligned.
+constexpr size_t min_chunk_size = chunk_header_size + min_payload_size;
 
 inline bool is_aligned(intptr_t ptr)
 {
@@ -86,6 +86,38 @@ inline size_t get_chunk_size(const chunk_t *chunk)
 {
     assert(chunk != nullptr);
     return chunk_header_size_with_padding + chunk->payload_size;
+}
+
+inline bool is_chunk_splittable(const chunk_t *chunk)
+{
+    size_t min_size_for_new_chunk = min_chunk_size;
+    size_t size_left_for_old_chunk_payload = min_payload_size;
+
+    return chunk->payload_size >= size_left_for_old_chunk_payload + min_size_for_new_chunk;
+}
+
+/**
+ * Splits given chunk into two chunks, one of which has size num_bytes and
+ * pointer to this chunk is returned.
+ * @param chunk
+ * @param num_bytes
+ * @return Pointer to new chunk.
+ */
+inline chunk_t * split_chunk(chunk_t *chunk, size_t new_chunk_payload_size)
+{
+    assert(chunk != nullptr);
+    assert(new_chunk_payload_size >= min_payload_size);
+    assert(is_chunk_splittable(chunk));
+
+    intptr_t chunk_end = reinterpret_cast<intptr_t>(chunk) + get_chunk_size(chunk);
+    intptr_t new_chunk_payload = chunk_end - new_chunk_payload_size;
+    intptr_t new_chunk_begin = new_chunk_payload - chunk_header_size;
+
+    chunk_t *new_chunk = initialize_chunk(new_chunk_begin, new_chunk_payload_size);
+
+    chunk->payload_size -= get_chunk_size(new_chunk);
+
+    return new_chunk;
 }
 
 inline chunk_t * next_chunk_in_mem(const chunk_t *chunk)
@@ -285,7 +317,7 @@ private:
         chunk_t *new_chunk = nullptr;
         chunk_t *bigger_free_chunk = find_smallest_free_chunk(num_bytes);
         if (bigger_free_chunk) {
-            new_chunk = split(bigger_free_chunk, num_bytes);
+            new_chunk = split_chunk(bigger_free_chunk, num_bytes);
         }
         return new_chunk;
     }
@@ -305,19 +337,6 @@ private:
     chunk_t * find_smallest_free_chunk(size_t num_bytes)
     {
 
-    }
-
-    /**
-     * Splits given chunk into two chunks, one of which has size num_bytes and
-     * pointer to this chunk is returned.
-     * The other chunk is either inserted in some small bin, or given back to allocator.
-     * @param chunk
-     * @param num_bytes
-     * @return
-     */
-    chunk_t * split(chunk_t *chunk, size_t num_bytes)
-    {
-        assert(chunk != nullptr);
     }
 
     bin_t & get_bin_with_chunk_size(size_t chunk_size)
@@ -481,7 +500,7 @@ private:
     {
 
     }
-    }
+
 };
 
 
