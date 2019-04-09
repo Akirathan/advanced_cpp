@@ -67,7 +67,11 @@ static bool is_chunk_in_initialized_state(const chunk_t *chunk)
     return chunk->payload_size > 0 && chunk->used == 0;
 }
 
-BOOST_AUTO_TEST_CASE(two_chunks_payloads)
+/**
+ * Initialize two chunks by hand a fill them with some magic payload. Then check
+ * for consistency of those payloads.
+ */
+BOOST_AUTO_TEST_CASE(two_chunks_payloads_consistency_test)
 {
     std::array<uint8_t, 100> mem = {};
     const size_t payload_size = 16;
