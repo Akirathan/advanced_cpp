@@ -198,8 +198,6 @@ public:
         assert(is_aligned(start_addr));
         assert(is_aligned(end_addr));
 
-        size_t available_size = diff(start_addr, end_addr);
-
         std::array<std::vector<chunk_t *>, bin_count> initial_chunks;
         intptr_t last_addr = start_addr;
         bool fits_in_memory = fits_in_memory_region(start_addr, bins[0].chunk_sizes, end_addr);
