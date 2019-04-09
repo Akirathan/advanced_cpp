@@ -253,9 +253,14 @@ public:
     }
 
     /// Returns bool whether given size fits in some small bin.
-    bool fits_in_small_bin(size_t num_bytes) const
+    bool contains_bin_with_chunk_size(size_t payload_size) const
     {
-        return contains_bin_with_chunk_size(num_bytes);
+        for (auto &&bin : bins) {
+            if (bin.chunk_sizes == payload_size) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -290,16 +295,6 @@ private:
             size_t chunk_size = min_chunk_size_for_bins + i * gap_between_bins;
             bins[i] = bin_t{chunk_size, nullptr};
         }
-    }
-
-    bool contains_bin_with_chunk_size(size_t chunk_size) const
-    {
-        for (auto &&bin : bins) {
-            if (bin.chunk_sizes == chunk_size) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /// If @param chunk_size is smaller than bin.chunk_size, then a free chunk from
@@ -447,7 +442,7 @@ public:
     T * allocate(size_t n)
     {
         T *allocated_space = nullptr;
-        if (small_bins.fits_in_small_bin(n)) {
+        if (small_bins.contains_bin_with_chunk_size(n)) {
             allocated_space = allocate_in_small_bins(n);
             if (allocated_space) {
                 return allocated_space;
