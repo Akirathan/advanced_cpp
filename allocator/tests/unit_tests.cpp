@@ -84,6 +84,27 @@ BOOST_AUTO_TEST_CASE(two_chunks_payloads)
     BOOST_TEST(check_payload_consistency(get_chunk_data(second_chunk), payload_size));
 }
 
+BOOST_AUTO_TEST_CASE(chunk_split_test)
+{
+    const size_t mem_size = 160;
+    auto [start_addr, end_addr] = get_aligned_memory_region(mem_size);
+
+    // Chunk is over whole memory.
+    size_t max_payload_size = mem_size - chunk_header_size;
+    chunk_t *chunk = initialize_chunk(start_addr, max_payload_size);
+    BOOST_TEST(chunk);
+
+    chunk_t *new_chunk = split_chunk(chunk, 16);
+    BOOST_TEST(new_chunk);
+
+    // Memory should be filled with two chunks.
+    chunk_t *next_chunk = next_chunk_in_mem(chunk);
+    BOOST_TEST(next_chunk == new_chunk);
+
+    // Chunk's payload should be decreased.
+    BOOST_TEST(chunk->payload_size < max_payload_size);
+}
+
 BOOST_AUTO_TEST_CASE(aligned_heap_test)
 {
     std::array<uint8_t, 100> mem = {};
