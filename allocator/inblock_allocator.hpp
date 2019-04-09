@@ -6,6 +6,7 @@
 #include <tuple>
 #include <cassert>
 #include <vector>
+#include <cmath>
 #include "allocator_exception.hpp"
 
 template <typename T, typename HeapHolder> class inblock_allocator;
@@ -72,6 +73,21 @@ inline chunk_t * initialize_chunk(intptr_t start_addr, size_t payload_size)
     auto mem_addr = reinterpret_cast<chunk_header_t *>(start_addr);
     *mem_addr = header;
     return mem_addr;
+}
+
+/**
+ * Fills given memory region with one chunk.
+ * @param start_addr
+ * @param end_addr
+ * @return
+ */
+inline chunk_t * initialize_chunk_in_region(intptr_t start_addr, intptr_t end_addr)
+{
+    size_t space_for_chunk = diff(start_addr, end_addr);
+    assert(space_for_chunk >= min_chunk_size);
+
+    size_t payload_size = space_for_chunk - chunk_header_size;
+    return initialize_chunk(start_addr, payload_size);
 }
 
 inline void * get_chunk_data(const chunk_t *chunk)
@@ -467,17 +483,17 @@ public:
     }
 
 private:
-    const intptr_t start_addr = HeapHolder::heap.get_start_addr();
+    /// Denotes total size of memory that will be passed to small bins in initialization.
+    /// Note that there has to be some space left in the rest of the memory at least for
+    /// one minimal chunk.
+    static constexpr float mem_size_for_small_bins_ratio = 0.4;
+    static constexpr float mem_size_for_large_bin_ratio = 0.4;
+    const intptr_t heap_start_addr = HeapHolder::heap.get_start_addr();
+    const intptr_t heap_end_addr = HeapHolder::heap.get_end_addr();
+    const intptr_t heap_size = HeapHolder::heap.get_size();
     SmallBins<T, HeapHolder> small_bins;
     LargeBin large_bin;
     UnsortedBin<T, HeapHolder> unsorted_bin;
-
-    struct initial_memory_division_t {
-        intptr_t small_bins_start;
-        intptr_t small_bins_end;
-        intptr_t large_bin_start;
-        intptr_t large_bin_end;
-    };
 
     T * allocate_in_small_bins(size_t n)
     {
@@ -487,9 +503,30 @@ private:
         }
     }
 
-    initial_memory_division_t count_initial_memory_division() const
+    void initialize_memory()
     {
+        const intptr_t small_bins_start = heap_start_addr;
+        const intptr_t small_bins_end = small_bins_start + std::floor(mem_size_for_small_bins_ratio * heap_size);
+        const intptr_t large_bin_end = small_bins_end + std::floor(mem_size_for_large_bin_ratio * heap_size);
 
+        const intptr_t small_bins_real_end = small_bins.initialize_memory(small_bins_start, small_bins_end);
+        const intptr_t large_bin_real_end = large_bin.initialize_memory(small_bins_real_end, large_bin_end);
+
+        chunk_t *last_chunk = initialize_last_chunk_in_mem(large_bin_real_end);
+        unsorted_bin.store_chunk(last_chunk);
+    }
+
+    chunk_t * initialize_last_chunk_in_mem(intptr_t chunk_start_addr)
+    {
+        // If this assert fails, try to decrease mem_size ratios members.
+        assert(contains_enough_space_for_chunk(chunk_start_addr, heap_end_addr));
+
+        return initialize_chunk_in_region(chunk_start_addr, heap_end_addr);
+    }
+
+    bool contains_enough_space_for_chunk(intptr_t start_addr, intptr_t end_addr) const
+    {
+        return fits_in_memory_region(start_addr, min_payload_size, end_addr);
     }
 
 };
