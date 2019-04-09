@@ -181,8 +181,8 @@ public:
                 chunk_t *new_chunk = initialize_chunk(start_addr, chunk_size);
                 initial_chunks[i].push_back(new_chunk);
 
-                last_addr = start_addr;
                 start_addr += get_chunk_size(new_chunk);
+                last_addr = start_addr;
             }
         }
 
@@ -191,7 +191,9 @@ public:
         }
 
         for (size_t i = 0; i < bins.size(); i++) {
-            bins[i].first_chunk = initial_chunks[i][0];
+            if (initial_chunks[i].size() > 0) {
+                bins[i].first_chunk = initial_chunks[i][0];
+            }
         }
 
         return last_addr;
