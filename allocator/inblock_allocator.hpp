@@ -178,6 +178,30 @@ inline void link_chunks(const std::vector<chunk_t *> &chunks)
     link_chunks(chunks[chunks.size() - 1], chunks[0]);
 }
 
+/**
+ * Inserts one chunk before the other inside double-linked list of chunks.
+ * @param new_chunk
+ * @param old_chunk
+ */
+inline void insert_chunk_before(chunk_t *new_chunk, chunk_t *old_chunk)
+{
+    assert(new_chunk);
+    chunk_t *last = nullptr;
+
+    if (old_chunk) {
+        last = old_chunk->prev;
+    }
+
+    if (old_chunk) {
+        link_chunks(new_chunk, old_chunk);
+        if (!last) {
+            link_chunks(old_chunk, new_chunk);
+        }
+    }
+    if (last) {
+        link_chunks(last, new_chunk);
+    }
+}
 
 template <typename T, typename HeapHolder>
 class SmallBins {
@@ -307,34 +331,54 @@ private:
         }
     }
 
-    /// If @param chunk_size is smaller than bin.chunk_size, then a free chunk from
-    /// this bin is splitted.
-    void alloc_in_bin(bin_t &bin, size_t chunk_size)
-    {
-
-    }
-
     chunk_t * allocate_in_bin_with_higher_chunk_size(size_t payload_size)
     {
         chunk_t *new_chunk = nullptr;
         chunk_t *bigger_free_chunk = find_smallest_free_chunk(payload_size);
         if (bigger_free_chunk) {
             new_chunk = split_chunk(bigger_free_chunk, payload_size);
+            move_chunk_to_correct_bin(bigger_free_chunk);
+            // No need to move also new_chunk to correct bin, since it will be immediately used by user anyway.
         }
         return new_chunk;
+    }
+
+    void move_chunk_to_correct_bin(chunk_t *chunk)
+    {
+        assert(chunk);
+        assert(contains_bin_with_chunk_size(chunk->payload_size));
+
+        bin_t &bin = get_bin_with_chunk_size(chunk->payload_size);
+        chunk_t *old_chunk = bin.first_chunk;
+        insert_chunk_before(chunk, old_chunk);
+        bin.first_chunk = chunk;
     }
 
     /// Returns nullptr if there is no free chunk.
     chunk_t * find_free_chunk_in_bin(const bin_t &bin)
     {
-
+        chunk_t *chunk = bin.first_chunk;
+        chunk_t *last_chunk = chunk;
+        while (chunk) {
+            last_chunk = chunk;
+            chunk = chunk->next;
+        }
+        return last_chunk;
     }
 
     /// Finds first free chunk with size greater than payload_size parameter.
     /// If there is no such chunk, nullptr is returned.
     chunk_t * find_smallest_free_chunk(size_t payload_size)
     {
-
+        for (const bin_t &bin : bins) {
+            if (bin.chunk_sizes > payload_size) {
+                chunk_t *free_chunk = find_free_chunk_in_bin(bin);
+                if (free_chunk) {
+                    return free_chunk;
+                }
+            }
+        }
+        return nullptr;
     }
 
     bin_t & get_bin_with_chunk_size(size_t chunk_size)
