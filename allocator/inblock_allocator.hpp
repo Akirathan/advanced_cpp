@@ -65,6 +65,8 @@ inline bool fits_in_memory_region(intptr_t start_addr, size_t payload_size, intp
 inline chunk_t * initialize_chunk(intptr_t start_addr, size_t payload_size)
 {
     assert(payload_size >= min_payload_size);
+    // TODO: Assert alligned memory?
+
     chunk_header_t header{nullptr, nullptr, payload_size, false};
 
     auto mem_addr = reinterpret_cast<chunk_header_t *>(start_addr);
@@ -236,7 +238,7 @@ public:
     {
         const size_t num_bytes = size_in_bytes(count);
         if (!contains_bin_with_chunk_size(num_bytes)) {
-            throw AllocatorException{"Wrong count specified"};
+            throw AllocatorException{"Wrong count specified"}; // TODO: assert?
         }
 
         bin_t &bin = get_bin_with_chunk_size(num_bytes);
@@ -327,6 +329,7 @@ private:
         return count * type_size;
     }
 
+    /// Returns nullptr if there is no free chunk.
     chunk_t * find_free_chunk_in_bin(const bin_t &bin)
     {
 
