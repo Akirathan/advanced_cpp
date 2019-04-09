@@ -333,12 +333,32 @@ private:
 };
 
 class LargeBin {
+public:
+    /// Has to be multiple of alignment (8).
+    static constexpr size_t min_chunk_size = 256;
 
+    /// This method has same semantics as SmallBins.initialize_memory.
+    intptr_t initialize_memory(intptr_t start_addr, intptr_t end_addr)
+    {
+        assert(is_aligned(start_addr));
+        assert(is_aligned(end_addr));
+
+        // TODO
+    }
+
+private:
+    chunk_t *chunks;
 };
 
 template <typename T, typename HeapHolder>
 class UnsortedBin {
 public:
+
+    void store_chunk(chunk_t *chunk)
+    {
+
+    }
+
     /**
      * Gets chunk with given size.
      * @param num_bytes
