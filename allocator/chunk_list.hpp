@@ -6,6 +6,7 @@
 #include <tuple>
 #include <cassert>
 #include <vector>
+#include <functional>
 #include "chunk.hpp"
 
 /// Represents double-linked list of chunks
@@ -128,6 +129,26 @@ public:
                     remove_chunk(chunk);
                     return chunk;
                 }
+                chunk = chunk->next;
+            }
+        }
+    }
+
+    // TODO: Replace with iterator.
+    void traverse(std::function<void(const chunk_t *)> func) const
+    {
+        if (is_empty()) {
+            return;
+        }
+        else if (contains_just_one_element()) {
+            func(first_chunk);
+        }
+        else {
+            func(first_chunk);
+            chunk_t *chunk = first_chunk->next;
+
+            while (chunk != first_chunk) {
+                func(chunk);
                 chunk = chunk->next;
             }
         }
