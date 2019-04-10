@@ -10,8 +10,8 @@
 #include "allocator_exception.hpp"
 
 template <typename T, typename HeapHolder> class inblock_allocator;
-template <typename T, typename HeapHolder> class UnsortedBin;
-template <typename T, typename HeapHolder> class SmallBins;
+class UnsortedBin;
+class SmallBins;
 
 struct chunk_header_t {
     chunk_header_t *prev;
@@ -274,14 +274,12 @@ private:
 };
 
 
-template <typename T, typename HeapHolder>
 class SmallBins {
 public:
     static constexpr size_t gap_between_bins = 8;
     static constexpr size_t bin_count = 5;
     static constexpr size_t min_chunk_size_for_bins = 16;
     static constexpr size_t max_chunk_size_for_bins = min_chunk_size_for_bins + (bin_count * gap_between_bins);
-    static constexpr size_t type_size = sizeof(T);
 
     /**
      * Initializes some small bins with some chunks within the address range given as parameters.
@@ -292,7 +290,7 @@ public:
      * @param start_addr
      * @param end_addr
      */
-    explicit SmallBins()
+    SmallBins()
     {
         initialize_bins();
     }
@@ -372,7 +370,6 @@ private:
         ChunkList chunk_list;
     };
     std::array<bin_t, bin_count> bins;
-    chunk_t *redundant_chunks;
 
 
     void initialize_bins()
@@ -428,7 +425,6 @@ private:
             }
         }
     }
-
 };
 
 class LargeBin {
@@ -449,7 +445,6 @@ private:
     chunk_t *chunks;
 };
 
-template <typename T, typename HeapHolder>
 class UnsortedBin {
 public:
 
@@ -549,7 +544,6 @@ public:
     inblock_allocator()
     {
         initialize_memory();
-        //HeapHolder::heap::get_start_addr();
     }
 
     T * allocate(size_t n)
@@ -574,9 +568,9 @@ private:
     const intptr_t heap_start_addr = HeapHolder::heap.get_start_addr();
     const intptr_t heap_end_addr = HeapHolder::heap.get_end_addr();
     const intptr_t heap_size = HeapHolder::heap.get_size();
-    SmallBins<T, HeapHolder> small_bins;
+    SmallBins small_bins;
     LargeBin large_bin;
-    UnsortedBin<T, HeapHolder> unsorted_bin;
+    UnsortedBin unsorted_bin;
 
     T * allocate_in_small_bins(size_t n)
     {
