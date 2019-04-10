@@ -82,13 +82,28 @@ static bool equals_some(const chunk_t *chunk, const std::vector<chunk_t *> &chun
     return false;
 }
 
-static bool is_correct_list(const ChunkList &chunk_list)
+static bool is_linked(const chunk_t *first_chunk, const chunk_t *second_chunk)
 {
-    // TODO
-    return false;
+    return first_chunk->next == second_chunk && second_chunk->prev == first_chunk;
 }
 
-BOOST_AUTO_TEST_CASE(prepend_chunk_to_one_element_list_test)
+static bool is_correct_list(const ChunkList &chunk_list)
+{
+    const chunk_t *first_chunk = chunk_list.get_first_chunk();
+    chunk_t *second_chunk = first_chunk->next;
+    chunk_t *chunk = chunk_list.get_first_chunk();
+    while (second_chunk && second_chunk != first_chunk) {
+        if (!is_linked(chunk, second_chunk)) {
+            return false;
+        }
+
+        chunk = second_chunk;
+        second_chunk = second_chunk->next;
+    }
+    return true;
+}
+
+BOOST_AUTO_TEST_CASE(chunk_list_prepend_test)
 {
     auto first_chunk_storage = std::make_unique<chunk_t>();
     auto second_chunk_storage = std::make_unique<chunk_t>();
@@ -96,10 +111,65 @@ BOOST_AUTO_TEST_CASE(prepend_chunk_to_one_element_list_test)
     chunk_t *second_chunk = second_chunk_storage.get();
 
     ChunkList chunk_list;
-    chunk_list.prepend_chunk(first_chunk);
     chunk_list.prepend_chunk(second_chunk);
+    chunk_list.prepend_chunk(first_chunk);
 
     BOOST_TEST(is_correct_list(chunk_list));
+    BOOST_TEST(chunk_list.get_first_chunk() == first_chunk);
+}
+
+BOOST_AUTO_TEST_CASE(chunk_list_is_empty_test)
+{
+    auto first_chunk_storage = std::make_unique<chunk_t>();
+    auto second_chunk_storage = std::make_unique<chunk_t>();
+    chunk_t *first_chunk = first_chunk_storage.get();
+    chunk_t *second_chunk = second_chunk_storage.get();
+
+    ChunkList chunk_list;
+    BOOST_TEST(chunk_list.is_empty());
+
+    chunk_list.prepend_chunk(first_chunk);
+    BOOST_TEST(!chunk_list.is_empty());
+
+    chunk_list.prepend_chunk(second_chunk);
+    BOOST_TEST(!chunk_list.is_empty());
+}
+
+BOOST_AUTO_TEST_CASE(chunk_list_pop_first_test)
+{
+    auto first_chunk_storage = std::make_unique<chunk_t>();
+    auto second_chunk_storage = std::make_unique<chunk_t>();
+    chunk_t *first_chunk = first_chunk_storage.get();
+    chunk_t *second_chunk = second_chunk_storage.get();
+
+    ChunkList chunk_list;
+    chunk_list.prepend_chunk(second_chunk);
+    chunk_list.prepend_chunk(first_chunk);
+
+    chunk_t *popped_chunk = chunk_list.pop_first_chunk();
+    BOOST_TEST(popped_chunk == first_chunk);
+
+    popped_chunk = chunk_list.pop_first_chunk();
+    BOOST_TEST(popped_chunk == second_chunk);
+
+    BOOST_TEST(chunk_list.is_empty());
+}
+
+BOOST_AUTO_TEST_CASE(chunk_list_find_free_chunk_test)
+{
+    auto first_chunk_storage = std::make_unique<chunk_t>();
+    auto second_chunk_storage = std::make_unique<chunk_t>();
+    chunk_t *first_chunk = first_chunk_storage.get();
+    chunk_t *second_chunk = second_chunk_storage.get();
+
+    ChunkList chunk_list;
+    BOOST_TEST(!chunk_list.find_free_chunk());
+
+    chunk_list.prepend_chunk(second_chunk);
+    BOOST_TEST(chunk_list.find_free_chunk());
+
+    chunk_list.prepend_chunk(first_chunk);
+    BOOST_TEST(chunk_list.find_free_chunk());
 }
 
 /**
