@@ -178,24 +178,41 @@ inline void link_chunks(const std::vector<chunk_t *> &chunks)
     link_chunks(chunks[chunks.size() - 1], chunks[0]);
 }
 
+inline void remove_chunk_from_list(chunk_t *chunk)
+{
+    assert(chunk);
+
+    chunk_t *prev = chunk->prev;
+    chunk_t *next = chunk->next;
+    chunk->next = nullptr;
+    chunk->prev = nullptr;
+
+    // Assert chunk in double-linked list.
+    assert((prev && next) || (!prev && !next));
+
+    if (prev && next) {
+        link_chunks(prev, next);
+    }
+}
+
 /**
  * Inserts one chunk before the other inside double-linked list of chunks.
- * @param new_chunk
- * @param old_chunk
+ * @param new_chunk Must not be nullptr.
+ * @param chunk_list May be nullptr.
  */
-inline void insert_chunk_before(chunk_t *new_chunk, chunk_t *old_chunk)
+inline void prepend_chunk_to_list(chunk_t *new_chunk, chunk_t *chunk_list)
 {
     assert(new_chunk);
     chunk_t *last = nullptr;
 
-    if (old_chunk) {
-        last = old_chunk->prev;
+    if (chunk_list) {
+        last = chunk_list->prev;
     }
 
-    if (old_chunk) {
-        link_chunks(new_chunk, old_chunk);
+    if (chunk_list) {
+        link_chunks(new_chunk, chunk_list);
         if (!last) {
-            link_chunks(old_chunk, new_chunk);
+            link_chunks(chunk_list, new_chunk);
         }
     }
     if (last) {
