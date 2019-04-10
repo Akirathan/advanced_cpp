@@ -78,6 +78,15 @@ public:
         return bin.chunk_list.size();
     }
 
+    size_t get_total_chunks_size() const
+    {
+        size_t total_size = 0;
+        for (const bin_t &bin : bins) {
+            total_size += bin.chunk_list.size();
+        }
+        return total_size;
+    }
+
     /**
      * Allocates a chunk with exactly payload size. If it is not possible nullptr is returned.
      * @param payload_size Chunk's payload size.
