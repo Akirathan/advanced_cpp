@@ -301,3 +301,33 @@ BOOST_AUTO_TEST_CASE(small_bins_memory_initialization)
     }
 }
 
+BOOST_AUTO_TEST_CASE(small_bins_simple_allocation_test)
+{
+    auto [start_addr, end_addr] = get_aligned_memory_region(80);
+    fill_memory_region_with_random_data(start_addr, end_addr);
+
+    SmallBins small_bins;
+    intptr_t returned_addr = small_bins.initialize_memory(start_addr, end_addr);
+    BOOST_TEST(returned_addr <= end_addr);
+
+    size_t chunk_payload_size = small_bins.min_chunk_size_for_bins;
+    BOOST_TEST(small_bins.contains_bin_with_chunk_size(chunk_payload_size));
+    chunk_t *allocated_chunk = small_bins.allocate_chunk(chunk_payload_size);
+    BOOST_TEST(allocated_chunk);
+    BOOST_TEST(allocated_chunk->payload_size == chunk_payload_size);
+    BOOST_TEST(is_chunk_in_initialized_state(allocated_chunk));
+}
+
+BOOST_AUTO_TEST_CASE(small_bins_allocation_failed_test)
+{
+    auto [start_addr, end_addr] = get_aligned_memory_region(80);
+    fill_memory_region_with_random_data(start_addr, end_addr);
+
+    SmallBins small_bins;
+    intptr_t returned_addr = small_bins.initialize_memory(start_addr, end_addr);
+    BOOST_TEST(returned_addr <= end_addr);
+
+    chunk_t *allocated_chunk = small_bins.allocate_chunk(small_bins.max_chunk_size_for_bins);
+    BOOST_TEST(allocated_chunk == nullptr);
+}
+
