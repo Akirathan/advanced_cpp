@@ -26,13 +26,18 @@ public:
 
     bool is_empty() const
     {
-        return first_chunk != nullptr;
+        return first_chunk == nullptr;
     }
 
     void prepend_chunk(chunk_t *chunk)
     {
         assert(chunk);
         chunk_t *last = nullptr;
+
+        if (!first_chunk) {
+            first_chunk = chunk;
+            return;
+        }
 
         if (first_chunk) {
             last = first_chunk->prev;
@@ -47,29 +52,45 @@ public:
         if (last) {
             link_chunks(last, chunk);
         }
+
+        first_chunk = chunk;
     }
 
     chunk_t * find_free_chunk() const
     {
-        chunk_t *chunk = first_chunk;
-        chunk_t *last_chunk = chunk;
-        while (chunk) {
-            last_chunk = chunk;
-            chunk = chunk->next;
+        if (is_empty()) {
+            return nullptr;
         }
-        return last_chunk;
+
+        if (contains_just_one_element()) {
+            return first_chunk;
+        }
+        else {
+            return first_chunk->prev;
+        }
     }
 
     chunk_t * pop_first_chunk()
     {
-        if (!first_chunk) {
+        if (is_empty()) {
             return nullptr;
+        }
+
+        if (contains_just_one_element()) {
+            chunk_t *old_first_chunk = first_chunk;
+            first_chunk = nullptr;
+            return old_first_chunk;
         }
 
         chunk_t *old_first_chunk = first_chunk;
         if (first_chunk->next) {
             first_chunk = first_chunk->next;
             remove_chunk_from_list(old_first_chunk);
+
+            if (contains_just_one_element()) {
+                // We need this because we do not want one element linking to self.
+                remove_chunk_from_list(first_chunk);
+            }
         }
         else {
             old_first_chunk = nullptr;
@@ -82,6 +103,12 @@ public:
     static void remove_chunk_from_list(chunk_t *chunk)
     {
         assert(chunk);
+
+        if (links_to_self(chunk)) {
+            chunk->next = nullptr;
+            chunk->prev = nullptr;
+            return;
+        }
 
         chunk_t *prev = chunk->prev;
         chunk_t *next = chunk->next;
@@ -129,6 +156,40 @@ public:
 
 private:
     chunk_t *first_chunk;
+
+    bool contains_just_one_element() const
+    {
+        if (is_empty()) {
+            return false;
+        }
+
+        if (links_to_self(first_chunk)) {
+            return true;
+        }
+
+        return has_no_links(first_chunk);
+    }
+
+    static bool links_to_self(const chunk_t *chunk)
+    {
+        return chunk->prev == chunk && chunk->next == chunk;
+    }
+
+    bool has_next(const chunk_t *chunk) const
+    {
+        return chunk->next;
+    }
+
+    bool has_prev(const chunk_t *chunk) const
+    {
+        return chunk->prev;
+    }
+
+    bool has_no_links(const chunk_t *chunk) const
+    {
+        return chunk->next == nullptr && chunk->prev == nullptr;
+    }
+
 };
 
 
