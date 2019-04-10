@@ -90,7 +90,7 @@ public:
         bin_t &bin = get_bin_with_chunk_size(payload_size);
         chunk_t *free_chunk = bin.chunk_list.find_free_chunk();
         if (free_chunk) {
-            ChunkList::remove_chunk_from_list(free_chunk);
+            bin.chunk_list.remove_chunk(free_chunk);
             return free_chunk;
         }
         else {
@@ -189,11 +189,11 @@ private:
     /// If there is no such chunk, nullptr is returned.
     chunk_t * find_smallest_free_chunk(size_t payload_size)
     {
-        for (const bin_t &bin : bins) {
+        for (bin_t &bin : bins) {
             if (bin.chunk_sizes > payload_size) {
                 chunk_t *free_chunk = bin.chunk_list.find_free_chunk();
                 if (free_chunk) {
-                    ChunkList::remove_chunk_from_list(free_chunk);
+                    bin.chunk_list.remove_chunk(free_chunk);
                     return free_chunk;
                 }
             }
