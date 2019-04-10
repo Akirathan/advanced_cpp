@@ -353,6 +353,20 @@ public:
         }
     }
 
+    /**
+     * Adds a free chunk. Preferably is a situation, when last allocation failed, so it is
+     * obvious that small bins needs some free chunk.
+     * @param chunk Chunk with arbitrary size. Will be moved inside small bins. May also be
+     * split.
+     * @return List of residue chunks that were created during splitting of given chunk.
+     */
+    ChunkList add_chunk(chunk_t *chunk)
+    {
+        assert(chunk);
+
+        return disperse_chunk_into_all_bins(chunk);
+    }
+
     /// Returns bool whether given size fits in some small bin.
     bool contains_bin_with_chunk_size(size_t payload_size) const
     {
@@ -396,6 +410,11 @@ private:
         }
 
         return new_chunk;
+    }
+
+    ChunkList disperse_chunk_into_all_bins(chunk_t *chunk)
+    {
+        // TODO
     }
 
     void move_chunk_to_correct_bin(chunk_t *chunk)
