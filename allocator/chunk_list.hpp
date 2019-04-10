@@ -105,12 +105,7 @@ public:
         chunk_t *old_first_chunk = first_chunk;
         if (first_chunk->next) {
             first_chunk = first_chunk->next;
-            remove_chunk_from_list(old_first_chunk);
-
-            if (contains_just_one_element()) {
-                // We need this because we do not want one element linking to self.
-                remove_chunk_from_list(first_chunk);
-            }
+            remove_chunk(old_first_chunk);
         }
         else {
             old_first_chunk = nullptr;
@@ -120,14 +115,11 @@ public:
         return old_first_chunk;
     }
 
-    static void remove_chunk_from_list(chunk_t *chunk)
+    void remove_chunk(chunk_t *chunk)
     {
-        assert(chunk);
-
         if (links_to_self(chunk)) {
             chunk->next = nullptr;
             chunk->prev = nullptr;
-            return;
         }
 
         chunk_t *prev = chunk->prev;
@@ -135,11 +127,12 @@ public:
         chunk->next = nullptr;
         chunk->prev = nullptr;
 
-        // Assert chunk in double-linked list.
-        assert((prev && next) || (!prev && !next));
-
         if (prev && next) {
             link_chunks(prev, next);
+        }
+
+        if (first_chunk == chunk) {
+            first_chunk = nullptr;
         }
     }
 
