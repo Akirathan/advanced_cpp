@@ -151,7 +151,21 @@ private:
 
     ChunkList disperse_chunk_into_all_bins(chunk_t *chunk)
     {
-        // TODO
+        assert(chunk);
+
+        bool chunk_can_be_split = true;
+        while (chunk_can_be_split) {
+            for (bin_t &bin : bins) {
+                if (is_chunk_splittable(chunk, bin.chunk_sizes)) {
+                    chunk_t *new_chunk = split_chunk(chunk, bin.chunk_sizes);
+                    bin.chunk_list.prepend_chunk(new_chunk);
+                }
+                else {
+                    chunk_can_be_split = false;
+                }
+            }
+        }
+        return ChunkList{chunk};
     }
 
     void move_chunk_to_correct_bin(chunk_t *chunk)
