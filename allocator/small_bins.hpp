@@ -115,9 +115,10 @@ public:
      * obvious that small bins needs some free chunk.
      * @param chunk Chunk with arbitrary size. Will be moved inside small bins. May also be
      * split.
-     * @return List of residue chunks that were created during splitting of given chunk.
+     * @return Redundant chunk that was created during splitting of given chunk.
+     * May not be null.
      */
-    ChunkList add_chunk(chunk_t *chunk)
+    chunk_t * add_chunk(chunk_t *chunk)
     {
         assert(chunk);
 
@@ -169,7 +170,7 @@ private:
         return new_chunk;
     }
 
-    ChunkList disperse_chunk_into_all_bins(chunk_t *chunk)
+    chunk_t * disperse_chunk_into_all_bins(chunk_t *chunk)
     {
         assert(chunk);
 
@@ -185,7 +186,8 @@ private:
                 }
             }
         }
-        return ChunkList{chunk};
+        chunk_t *redundant_chunk = chunk;
+        return redundant_chunk;
     }
 
     void move_chunk_to_correct_bin(chunk_t *chunk)
