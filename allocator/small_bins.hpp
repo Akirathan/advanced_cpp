@@ -203,11 +203,24 @@ private:
 
     bin_t & get_bin_with_chunk_size(size_t chunk_size)
     {
-        for (auto &&bin : bins) {
+        for (bin_t &bin : bins) {
             if (bin.chunk_sizes == chunk_size) {
                 return bin;
             }
         }
+        // Unreachable
+        return bins[0];
+    }
+
+    const bin_t & get_bin_with_chunk_size(size_t chunk_size) const
+    {
+        for (const bin_t &bin : bins) {
+            if (bin.chunk_sizes == chunk_size) {
+                return bin;
+            }
+        }
+        // Unreachable
+        return bins[0];
     }
 };
 
