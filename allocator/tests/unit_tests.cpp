@@ -45,6 +45,13 @@ static bool check_payload_consistency(void *payload, size_t size)
     return true;
 }
 
+static bool is_payload_aligned(const chunk_t *chunk)
+{
+    assert(chunk);
+    void *data_ptr = get_chunk_data(chunk);
+    return is_aligned((intptr_t)data_ptr);
+}
+
 static void fill_memory_region_with_random_data(intptr_t start_addr, intptr_t end_addr)
 {
     while (start_addr < end_addr) {
@@ -458,6 +465,7 @@ BOOST_AUTO_TEST_CASE(small_bins_memory_initialization)
 
     traverse_all_memory(start_addr, returned_addr, [](chunk_t *chunk) {
         BOOST_TEST(is_chunk_in_initialized_state(chunk));
+        BOOST_TEST(is_payload_aligned(chunk));
     });
 }
 
@@ -531,6 +539,7 @@ BOOST_AUTO_TEST_CASE(small_bins_alloc_all_memory_test)
     traverse_all_memory(start_addr, end_addr, [&](chunk_t *chunk) {
         if (should_test == 0) {
             BOOST_TEST(chunk->payload_size >= smallest_payload_size);
+            BOOST_TEST(is_payload_aligned(chunk));
             should_test = 492;
         }
         should_test--;
@@ -554,5 +563,6 @@ BOOST_AUTO_TEST_CASE(large_bin_memory_init_test)
 
     traverse_all_memory(start_addr, returned_addr, [](chunk_t *chunk) {
         BOOST_TEST(is_chunk_in_initialized_state(chunk));
+        BOOST_TEST(is_payload_aligned(chunk));
     });
 }
