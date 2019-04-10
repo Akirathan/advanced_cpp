@@ -106,12 +106,12 @@ inline size_t get_chunk_size(const chunk_t *chunk)
     return chunk_header_size_with_padding + chunk->payload_size;
 }
 
-inline bool is_chunk_splittable(const chunk_t *chunk)
+inline bool is_chunk_splittable(const chunk_t *chunk, size_t new_payload_size)
 {
-    size_t min_size_for_new_chunk = min_chunk_size;
+    size_t size_for_new_chunk = chunk_header_size + new_payload_size;
     size_t size_left_for_old_chunk_payload = min_payload_size;
 
-    return chunk->payload_size >= size_left_for_old_chunk_payload + min_size_for_new_chunk;
+    return chunk->payload_size >= size_left_for_old_chunk_payload + size_for_new_chunk;
 }
 
 /**
@@ -120,12 +120,14 @@ inline bool is_chunk_splittable(const chunk_t *chunk)
  * @param chunk
  * @param num_bytes
  * @return Pointer to new chunk.
+ * TODO: Return pair of [new_chunk, old_chunk]?
+ *      Abych nezapominal, ze ten old_chunk musim taky nekam dat.
  */
 inline chunk_t * split_chunk(chunk_t *chunk, size_t new_chunk_payload_size)
 {
     assert(chunk != nullptr);
     assert(new_chunk_payload_size >= min_payload_size);
-    assert(is_chunk_splittable(chunk));
+    assert(is_chunk_splittable(chunk, new_chunk_payload_size));
 
     intptr_t chunk_end = reinterpret_cast<intptr_t>(chunk) + get_chunk_size(chunk);
     intptr_t new_chunk_payload = chunk_end - new_chunk_payload_size;
