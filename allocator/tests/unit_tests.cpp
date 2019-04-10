@@ -2,6 +2,7 @@
 #define BOOST_TEST_MODULE My_test
 
 #include <array>
+#include <memory>
 #include <boost/test/included/unit_test.hpp>
 #include "../inblock_allocator.hpp"
 
@@ -75,6 +76,26 @@ static bool equals_some(const chunk_t *chunk, const std::vector<chunk_t *> &chun
         }
     }
     return false;
+}
+
+static bool is_correct_list(const ChunkList &chunk_list)
+{
+    // TODO
+    return false;
+}
+
+BOOST_AUTO_TEST_CASE(prepend_chunk_to_one_element_list_test)
+{
+    auto first_chunk_storage = std::make_unique<chunk_t>();
+    auto second_chunk_storage = std::make_unique<chunk_t>();
+    chunk_t *first_chunk = first_chunk_storage.get();
+    chunk_t *second_chunk = second_chunk_storage.get();
+
+    ChunkList chunk_list;
+    chunk_list.prepend_chunk(first_chunk);
+    chunk_list.prepend_chunk(second_chunk);
+
+    BOOST_TEST(is_correct_list(chunk_list));
 }
 
 /**

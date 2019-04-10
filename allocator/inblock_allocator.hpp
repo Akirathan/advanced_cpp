@@ -150,77 +150,129 @@ inline chunk_t * next_chunk_in_mem(const chunk_t *chunk)
     return reinterpret_cast<chunk_t *>(ptr);
 }
 
-/**
- * Links two chunks. The direction matters.
- * @param first_chunk
- * @param second_chunk
- */
-inline void link_chunks(chunk_t *first_chunk, chunk_t *second_chunk)
-{
-    assert(first_chunk != nullptr);
-    assert(second_chunk != nullptr);
+/// Represents double-linked list of chunks
+class ChunkList {
+public:
+    explicit ChunkList(chunk_t *chunk)
+        : first_chunk{chunk}
+    {}
 
-    first_chunk->next = second_chunk;
-    second_chunk->prev = first_chunk;
-}
+    ChunkList()
+        : ChunkList{nullptr}
+    {}
 
-/// Makes cyclic links
-inline void link_chunks(const std::vector<chunk_t *> &chunks)
-{
-    if (chunks.size() <= 1) {
-        return;
+    chunk_t * get_first_chunk() const
+    {
+        return first_chunk;
     }
 
-    for (size_t i = 0; i < chunks.size() - 1; ++i) {
-        chunk_t *first_chunk = chunks[i];
-        chunk_t *second_chunk = chunks[i+1];
-        link_chunks(first_chunk, second_chunk);
+    bool is_empty() const
+    {
+        return first_chunk != nullptr;
     }
 
-    link_chunks(chunks[chunks.size() - 1], chunks[0]);
-}
+    void prepend_chunk(chunk_t *chunk)
+    {
+        assert(chunk);
+        chunk_t *last = nullptr;
 
-inline void remove_chunk_from_list(chunk_t *chunk)
-{
-    assert(chunk);
+        if (first_chunk) {
+            last = first_chunk->prev;
+        }
 
-    chunk_t *prev = chunk->prev;
-    chunk_t *next = chunk->next;
-    chunk->next = nullptr;
-    chunk->prev = nullptr;
-
-    // Assert chunk in double-linked list.
-    assert((prev && next) || (!prev && !next));
-
-    if (prev && next) {
-        link_chunks(prev, next);
-    }
-}
-
-/**
- * Inserts one chunk before the other inside double-linked list of chunks.
- * @param new_chunk Must not be nullptr.
- * @param chunk_list May be nullptr.
- */
-inline void prepend_chunk_to_list(chunk_t *new_chunk, chunk_t *chunk_list)
-{
-    assert(new_chunk);
-    chunk_t *last = nullptr;
-
-    if (chunk_list) {
-        last = chunk_list->prev;
-    }
-
-    if (chunk_list) {
-        link_chunks(new_chunk, chunk_list);
-        if (!last) {
-            link_chunks(chunk_list, new_chunk);
+        if (first_chunk) {
+            link_chunks(chunk, first_chunk);
+            if (!last) {
+                link_chunks(first_chunk, chunk);
+            }
+        }
+        if (last) {
+            link_chunks(last, chunk);
         }
     }
-    if (last) {
-        link_chunks(last, new_chunk);
+
+    chunk_t * find_free_chunk() const
+    {
+        chunk_t *chunk = first_chunk;
+        chunk_t *last_chunk = chunk;
+        while (chunk) {
+            last_chunk = chunk;
+            chunk = chunk->next;
+        }
+        return last_chunk;
     }
-}
+
+    chunk_t * pop_first_chunk()
+    {
+        if (!first_chunk) {
+            return nullptr;
+        }
+
+        chunk_t *old_first_chunk = first_chunk;
+        if (first_chunk->next) {
+            first_chunk = first_chunk->next;
+            remove_chunk_from_list(old_first_chunk);
+        }
+        else {
+            old_first_chunk = nullptr;
+            first_chunk = nullptr;
+        }
+
+        return old_first_chunk;
+    }
+
+    static void remove_chunk_from_list(chunk_t *chunk)
+    {
+        assert(chunk);
+
+        chunk_t *prev = chunk->prev;
+        chunk_t *next = chunk->next;
+        chunk->next = nullptr;
+        chunk->prev = nullptr;
+
+        // Assert chunk in double-linked list.
+        assert((prev && next) || (!prev && !next));
+
+        if (prev && next) {
+            link_chunks(prev, next);
+        }
+    }
+
+    /**
+     * Links two chunks. The direction matters.
+     * @param first_chunk
+     * @param second_chunk
+     */
+    static void link_chunks(chunk_t *first_chunk, chunk_t *second_chunk)
+    {
+        assert(first_chunk != nullptr);
+        assert(second_chunk != nullptr);
+
+        first_chunk->next = second_chunk;
+        second_chunk->prev = first_chunk;
+    }
+
+    /// Makes cyclic links
+    /// TODO: Return ChunkList?
+    static void link_chunks(const std::vector<chunk_t *> &chunks)
+    {
+        if (chunks.size() <= 1) {
+            return;
+        }
+
+        for (size_t i = 0; i < chunks.size() - 1; ++i) {
+            chunk_t *first_chunk = chunks[i];
+            chunk_t *second_chunk = chunks[i+1];
+            link_chunks(first_chunk, second_chunk);
+        }
+
+        link_chunks(chunks[chunks.size() - 1], chunks[0]);
+    }
+
+private:
+    chunk_t *first_chunk;
+};
+
 
 template <typename T, typename HeapHolder>
 class SmallBins {
@@ -257,7 +309,7 @@ public:
         assert(is_aligned(start_addr));
         assert(is_aligned(end_addr));
 
-        std::array<std::vector<chunk_t *>, bin_count> initial_chunks;
+        std::array<ChunkList, bin_count> initial_chunk_lists;
         intptr_t last_addr = start_addr;
         bool fits_in_memory = fits_in_memory_region(start_addr, bins[0].chunk_sizes, end_addr);
 
@@ -270,34 +322,33 @@ public:
                     break;
                 }
                 chunk_t *new_chunk = initialize_chunk(start_addr, chunk_size);
-                initial_chunks[i].push_back(new_chunk);
+                initial_chunk_lists[i].prepend_chunk(new_chunk);
 
                 start_addr += get_chunk_size(new_chunk);
                 last_addr = start_addr;
             }
         }
 
-        for (const std::vector<chunk_t *> &chunks : initial_chunks) {
-            link_chunks(chunks);
-        }
-
         for (size_t i = 0; i < bins.size(); i++) {
-            if (initial_chunks[i].size() > 0) {
-                bins[i].first_chunk = initial_chunks[i][0];
-            }
+            bins[i].chunk_list = initial_chunk_lists[i];
         }
 
         return last_addr;
     }
 
-    /// Allocates chunk with exactly count size.
+    /**
+     * Allocates a chunk with exactly payload size. If it is not possible nullptr is returned.
+     * @param payload_size Chunk's payload size.
+     * @return May return nullptr.
+     */
     chunk_t * allocate_chunk(size_t payload_size)
     {
         assert(contains_bin_with_chunk_size(payload_size));
 
         bin_t &bin = get_bin_with_chunk_size(payload_size);
-        chunk_t *free_chunk = find_free_chunk_in_bin(bin);
+        chunk_t *free_chunk = bin.chunk_list.find_free_chunk();
         if (free_chunk) {
+            ChunkList::remove_chunk_from_list(free_chunk);
             return free_chunk;
         }
         else {
@@ -336,7 +387,7 @@ public:
 private:
     struct bin_t {
         size_t chunk_sizes;
-        chunk_t *first_chunk;
+        ChunkList chunk_list;
     };
     std::array<bin_t, bin_count> bins;
     chunk_t *redundant_chunks;
@@ -346,7 +397,7 @@ private:
     {
         for (size_t i = 0; i < bins.size(); ++i) {
             size_t chunk_size = min_chunk_size_for_bins + i * gap_between_bins;
-            bins[i] = bin_t{chunk_size, nullptr};
+            bins[i] = bin_t{chunk_size, ChunkList{}};
         }
     }
 
@@ -368,21 +419,7 @@ private:
         assert(contains_bin_with_chunk_size(chunk->payload_size));
 
         bin_t &bin = get_bin_with_chunk_size(chunk->payload_size);
-        chunk_t *old_chunk = bin.first_chunk;
-        insert_chunk_before(chunk, old_chunk);
-        bin.first_chunk = chunk;
-    }
-
-    /// Returns nullptr if there is no free chunk.
-    chunk_t * find_free_chunk_in_bin(const bin_t &bin)
-    {
-        chunk_t *chunk = bin.first_chunk;
-        chunk_t *last_chunk = chunk;
-        while (chunk) {
-            last_chunk = chunk;
-            chunk = chunk->next;
-        }
-        return last_chunk;
+        bin.chunk_list.prepend_chunk(chunk);
     }
 
     /// Finds first free chunk with size greater than payload_size parameter.
@@ -391,8 +428,9 @@ private:
     {
         for (const bin_t &bin : bins) {
             if (bin.chunk_sizes > payload_size) {
-                chunk_t *free_chunk = find_free_chunk_in_bin(bin);
+                chunk_t *free_chunk = bin.chunk_list.find_free_chunk();
                 if (free_chunk) {
+                    ChunkList::remove_chunk_from_list(free_chunk);
                     return free_chunk;
                 }
             }
