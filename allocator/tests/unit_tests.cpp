@@ -135,6 +135,35 @@ BOOST_AUTO_TEST_CASE(chunk_list_is_empty_test)
     BOOST_TEST(!chunk_list.is_empty());
 }
 
+BOOST_AUTO_TEST_CASE(chunk_list_small_size_test)
+{
+    auto first_chunk_storage = std::make_unique<chunk_t>();
+    chunk_t *first_chunk = first_chunk_storage.get();
+
+    ChunkList chunk_list;
+    BOOST_TEST(chunk_list.size() == 0);
+
+    chunk_list.prepend_chunk(first_chunk);
+    BOOST_TEST(chunk_list.size() == 1);
+}
+
+BOOST_AUTO_TEST_CASE(chunk_list_bigger_size_test)
+{
+    const size_t chunk_count = 13;
+    std::vector<std::unique_ptr<chunk_t>> chunk_vector;
+
+    for (size_t i = 0; i < chunk_count; ++i) {
+        chunk_vector.emplace_back(std::make_unique<chunk_t>());
+    }
+
+    ChunkList chunk_list;
+    for (auto &chunk_ptr : chunk_vector) {
+        chunk_list.prepend_chunk(chunk_ptr.get());
+    }
+
+    BOOST_TEST(chunk_list.size() == chunk_count);
+}
+
 BOOST_AUTO_TEST_CASE(chunk_list_pop_first_test)
 {
     auto first_chunk_storage = std::make_unique<chunk_t>();
