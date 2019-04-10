@@ -108,6 +108,28 @@ public:
         }
     }
 
+    chunk_t * get_chunk_with_size_at_least(size_t payload_size)
+    {
+        if (is_empty()) {
+            return nullptr;
+        }
+        else if (contains_just_one_element()) {
+            if (first_chunk->payload_size >= payload_size) {
+                return first_chunk;
+            }
+        }
+        else {
+            chunk_t *chunk = first_chunk->next;
+
+            while (chunk != first_chunk) {
+                if (chunk->payload_size >= payload_size) {
+                    return chunk;
+                }
+                chunk = chunk->next;
+            }
+        }
+    }
+
     chunk_t * pop_first_chunk()
     {
         if (is_empty()) {
