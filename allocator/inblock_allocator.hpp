@@ -15,10 +15,6 @@
 #include "common.hpp"
 #include "chunk.hpp"
 
-template <typename T, typename HeapHolder> class inblock_allocator;;
-
-// Must be aligned.
-
 
 class inblock_allocator_heap {
 public:
@@ -106,18 +102,30 @@ public:
         }
     }
 
+    intptr_t get_chunk_region_start_addr() const
+    {
+        return chunk_region_start_addr;
+    }
+
+    intptr_t get_chunk_region_end_addr() const
+    {
+        return chunk_region_end_addr;
+    }
+
 private:
     /// Denotes total size of memory that will be passed to small bins in initialization.
     /// Note that there has to be some space left in the rest of the memory at least for
     /// one minimal chunk.
     static constexpr float mem_size_for_small_bins_ratio = 0.4;
-    static constexpr float mem_size_for_large_bin_ratio = 0.4;
     const intptr_t heap_start_addr = HeapHolder::heap.get_start_addr();
     const intptr_t heap_end_addr = HeapHolder::heap.get_end_addr();
     const intptr_t heap_size = HeapHolder::heap.get_size();
+    /// Chunk region is memory region covered by chunks and therefore used.
+    /// There may be small amount of memory that is not covered by chunks.
+    const intptr_t chunk_region_start_addr;
+    const intptr_t chunk_region_end_addr;
     SmallBins small_bins;
     LargeBin large_bin;
-    UnsortedBin unsorted_bin;
 
     T * allocate_in_small_bins(size_t n)
     {
@@ -131,7 +139,7 @@ private:
 
             if (is_chunk_splittable(bigger_chunk, bytes_num)) {
                 chunk_for_allocation = split_chunk(bigger_chunk, bytes_num);
-                unsorted_bin.store_chunk(bigger_chunk);
+                large_bin.store_chunk(bigger_chunk);
             }
             else {
                 chunk_for_allocation = bigger_chunk;
@@ -146,13 +154,14 @@ private:
     void refill_small_bins()
     {
         //TODO: Perhaps some smarter algorithm?
-        chunk_t *some_chunk = unsorted_bin.get_first_chunk();
+        chunk_t *some_chunk = large_bin.pop_first_chunk();
         if (!some_chunk) {
             return;
         }
 
-        ChunkList residue_chunks = small_bins.add_chunk(some_chunk);
-        unsorted_bin.store_chunks(residue_chunks);
+        chunk_t *redundant_chunk = small_bins.add_chunk(some_chunk);
+        assert(redundant_chunk);
+        large_bin.store_chunk(redundant_chunk);
     }
 
     T * allocate_in_large_bin(size_t n)
@@ -163,12 +172,9 @@ private:
     /// May return nullptr if there is no chunk with size at least payload_size.
     chunk_t * find_chunk_with_size_at_least(size_t payload_size)
     {
-        chunk_t *chunk = unsorted_bin.get_chunk_with_size_at_least(payload_size);
+        chunk_t *chunk = large_bin.get_chunk_with_size_at_least(payload_size);
         if (!chunk) {
-            chunk = large_bin.get_chunk_with_size_at_least(payload_size);
-            if (!chunk) {
-                chunk = consolidate_chunk(payload_size);
-            }
+            chunk = consolidate_chunk_with_size_at_least(payload_size);
         }
 
         if (chunk) {
@@ -180,23 +186,31 @@ private:
 
     void initialize_memory()
     {
+        chunk_region_start_addr = heap_start_addr;
+
         const intptr_t small_bins_start = heap_start_addr;
         const intptr_t small_bins_end = small_bins_start + std::floor(mem_size_for_small_bins_ratio * heap_size);
-        const intptr_t large_bin_end = small_bins_end + std::floor(mem_size_for_large_bin_ratio * heap_size);
 
         const intptr_t small_bins_real_end = small_bins.initialize_memory(small_bins_start, small_bins_end);
-        const intptr_t large_bin_real_end = large_bin.initialize_memory(small_bins_real_end, large_bin_end);
+        const intptr_t large_bin_real_end = large_bin.initialize_memory(small_bins_real_end, heap_end_addr);
 
         chunk_t *last_chunk = initialize_last_chunk_in_mem(large_bin_real_end);
-        unsorted_bin.store_chunk(last_chunk);
+        if (last_chunk) {
+            chunk_region_end_addr = heap_end_addr;
+        }
+        else {
+            chunk_region_end_addr = large_bin_real_end;
+        }
+        large_bin.store_chunk(last_chunk);
     }
 
     chunk_t * initialize_last_chunk_in_mem(intptr_t chunk_start_addr)
     {
-        // If this assert fails, try to decrease mem_size ratios members.
-        assert(contains_enough_space_for_chunk(chunk_start_addr, heap_end_addr));
-
-        return initialize_chunk_in_region(chunk_start_addr, heap_end_addr);
+        chunk_t *last_chunk = nullptr;
+        if (contains_enough_space_for_chunk(chunk_start_addr, heap_end_addr)) {
+            last_chunk = initialize_chunk_in_region(chunk_start_addr, heap_end_addr);
+        }
+        return last_chunk;
     }
 
     /**
@@ -207,7 +221,7 @@ private:
      * @param payload_size
      * @return
      */
-    chunk_t * consolidate_chunk(size_t payload_size)
+    chunk_t * consolidate_chunk_with_size_at_least(size_t payload_size)
     {
         // TODO
         return nullptr;
