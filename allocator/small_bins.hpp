@@ -70,6 +70,14 @@ public:
         return last_addr;
     }
 
+    size_t get_bin_size(size_t payload_size) const
+    {
+        assert(contains_bin_with_chunk_size(payload_size));
+
+        const bin_t &bin = get_bin_with_chunk_size(payload_size);
+        return bin.chunk_list.size();
+    }
+
     /**
      * Allocates a chunk with exactly payload size. If it is not possible nullptr is returned.
      * @param payload_size Chunk's payload size.
