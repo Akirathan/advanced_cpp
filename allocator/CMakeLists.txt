@@ -4,24 +4,34 @@ set(CMAKE_CXX_STANDARD 17)
 add_compile_options("-Wall" "-Wextra")
 
 
-# My main
-add_executable(allocator
+set(SOURCES
+        common.hpp
         allocator_exception.hpp
+        chunk.hpp
+        chunk_list.hpp
+        small_bins.hpp
+        large_bin.hpp
+        unsorted_bin.hpp
         inblock_allocator.hpp
         inblock_allocator.cpp
+        )
+
+# My main
+add_executable(allocator
+        ${SOURCES}
         main.cpp
         )
 
 
 # Basic test
 add_executable(basic_test
-        inblock_allocator.hpp
+        ${SOURCES}
         tests/basic_test.cpp
         )
 
 # Matrix test
 add_executable(matrix_test
-        inblock_allocator.hpp
+        ${SOURCES}
         tests/matrix_test.cpp
         )
 

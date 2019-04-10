@@ -5,6 +5,10 @@
 #include <memory>
 #include <boost/test/included/unit_test.hpp>
 #include "../inblock_allocator.hpp"
+#include "../small_bins.hpp"
+#include "../chunk_list.hpp"
+#include "../common.hpp"
+#include "../chunk.hpp"
 
 static constexpr uint8_t MAGIC = 0xA3;
 
@@ -184,7 +188,7 @@ BOOST_AUTO_TEST_CASE(small_bins_memory_initialization)
     auto [start_addr, end_addr] = get_aligned_memory_region(1024);
     fill_memory_region_with_random_data(start_addr, end_addr);
 
-    SmallBins<uint8_t, holder> small_bins;
+    SmallBins small_bins;
     intptr_t returned_addr = small_bins.initialize_memory(start_addr, end_addr);
 
     BOOST_TEST(returned_addr <= end_addr);
