@@ -508,3 +508,22 @@ BOOST_AUTO_TEST_CASE(small_bins_alloc_all_memory_test)
     });
 }
 
+
+/* ===================================================================================================== */
+/* ============================== LARGE BIN TESTS ===================================================== */
+/* ===================================================================================================== */
+
+BOOST_AUTO_TEST_CASE(large_bin_memory_init_test)
+{
+    auto [start_addr, end_addr] = get_aligned_memory_region(LargeBin::min_chunk_size * 10);
+    fill_memory_region_with_random_data(start_addr, end_addr);
+
+    LargeBin large_bin;
+    intptr_t returned_addr = large_bin.initialize_memory(start_addr, end_addr);
+
+    BOOST_TEST(returned_addr <= end_addr);
+
+    traverse_all_memory(start_addr, returned_addr, [](chunk_t *chunk) {
+        BOOST_TEST(is_chunk_in_initialized_state(chunk));
+    });
+}
