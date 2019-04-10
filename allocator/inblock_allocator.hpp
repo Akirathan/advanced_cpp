@@ -293,7 +293,6 @@ public:
      * @param end_addr
      */
     explicit SmallBins()
-        : redundant_chunks{nullptr}
     {
         initialize_bins();
     }
@@ -365,23 +364,6 @@ public:
             }
         }
         return false;
-    }
-
-    /**
-     * Redundant chunks are chunks that were generated as a residue from some split.
-     * @return
-     */
-    bool contains_redundant_chunks() const
-    {
-        return redundant_chunks != nullptr;
-    }
-
-    chunk_t * get_redundant_chunks()
-    {
-        assert(redundant_chunks != nullptr);
-        auto redundant_chunk = redundant_chunks;
-        redundant_chunks = nullptr;
-        return redundant_chunk;
     }
 
 private:
