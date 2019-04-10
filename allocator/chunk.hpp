@@ -74,6 +74,8 @@ inline size_t get_chunk_size(const chunk_t *chunk)
 
 inline bool is_chunk_splittable(const chunk_t *chunk, size_t new_payload_size)
 {
+    assert(chunk);
+
     size_t size_for_new_chunk = chunk_header_size + new_payload_size;
     size_t size_left_for_old_chunk_payload = min_payload_size;
 
