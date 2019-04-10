@@ -103,6 +103,17 @@ static bool is_correct_list(const ChunkList &chunk_list)
     return true;
 }
 
+
+
+static std::vector<std::unique_ptr<chunk_t>> create_chunks(size_t count)
+{
+    std::vector<std::unique_ptr<chunk_t>> chunk_vector;
+    for (size_t i = 0; i < count; ++i) {
+        chunk_vector.emplace_back(std::make_unique<chunk_t>());
+    }
+    return chunk_vector;
+}
+
 BOOST_AUTO_TEST_CASE(chunk_list_prepend_test)
 {
     auto first_chunk_storage = std::make_unique<chunk_t>();
@@ -150,11 +161,7 @@ BOOST_AUTO_TEST_CASE(chunk_list_small_size_test)
 BOOST_AUTO_TEST_CASE(chunk_list_bigger_size_test)
 {
     const size_t chunk_count = 13;
-    std::vector<std::unique_ptr<chunk_t>> chunk_vector;
-
-    for (size_t i = 0; i < chunk_count; ++i) {
-        chunk_vector.emplace_back(std::make_unique<chunk_t>());
-    }
+    auto chunk_vector = create_chunks(chunk_count);
 
     ChunkList chunk_list;
     for (auto &chunk_ptr : chunk_vector) {
@@ -199,6 +206,34 @@ BOOST_AUTO_TEST_CASE(chunk_list_find_free_chunk_test)
 
     chunk_list.prepend_chunk(first_chunk);
     BOOST_TEST(chunk_list.find_free_chunk());
+}
+
+BOOST_AUTO_TEST_CASE(chunk_list_remove_simple_test)
+{
+    auto first_chunk_storage = std::make_unique<chunk_t>();
+    chunk_t *first_chunk = first_chunk_storage.get();
+
+    ChunkList chunk_list{first_chunk};
+
+    chunk_list.remove_chunk(first_chunk);
+    BOOST_TEST(chunk_list.is_empty());
+}
+
+BOOST_AUTO_TEST_CASE(chunk_list_remove_more_chunks_test)
+{
+    auto chunk_vector = create_chunks(23);
+
+    ChunkList chunk_list;
+    for (auto &chunk_ptr : chunk_vector) {
+        chunk_list.prepend_chunk(chunk_ptr.get());
+    }
+
+    // Remove backwards.
+    for (auto it = chunk_vector.rbegin(); it != chunk_vector.rend(); it++) {
+        chunk_list.remove_chunk(it->get());
+    }
+
+    BOOST_TEST(chunk_list.is_empty());
 }
 
 /**
