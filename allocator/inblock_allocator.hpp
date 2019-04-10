@@ -385,10 +385,16 @@ private:
         chunk_t *new_chunk = nullptr;
         chunk_t *bigger_free_chunk = find_smallest_free_chunk(payload_size);
         if (bigger_free_chunk) {
-            new_chunk = split_chunk(bigger_free_chunk, payload_size);
-            move_chunk_to_correct_bin(bigger_free_chunk);
-            // No need to move also new_chunk to correct bin, since it will be immediately used by user anyway.
+            if (is_chunk_splittable(bigger_free_chunk, payload_size)) {
+                new_chunk = split_chunk(bigger_free_chunk, payload_size);
+                move_chunk_to_correct_bin(bigger_free_chunk);
+                // No need to move also new_chunk to correct bin, since it will be immediately used by user anyway.
+            }
+            else {
+                new_chunk = bigger_free_chunk;
+            }
         }
+
         return new_chunk;
     }
 
