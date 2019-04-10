@@ -326,6 +326,35 @@ BOOST_AUTO_TEST_CASE(chunk_list_remove_more_chunks_test)
     BOOST_TEST(chunk_list.is_empty());
 }
 
+BOOST_AUTO_TEST_CASE(chunk_list_pop_chunk_with_size_at_least_test)
+{
+    std::vector<std::unique_ptr<chunk_t>> chunk_vector;
+    for (size_t i = 0; i < 5; ++i) {
+        chunk_vector.emplace_back(std::make_unique<chunk_t>());
+    }
+
+    chunk_vector[0]->payload_size = 13;
+    chunk_vector[1]->payload_size = 15;
+    chunk_vector[2]->payload_size = 42;
+    chunk_vector[3]->payload_size = 3;
+    chunk_vector[4]->payload_size = 5;
+
+    ChunkList chunk_list;
+    for (auto &chunk_ptr : chunk_vector) {
+        chunk_list.append_chunk(chunk_ptr.get());
+    }
+
+    chunk_t *chunk = chunk_list.pop_chunk_with_size_at_least(40);
+    BOOST_TEST(chunk);
+    BOOST_TEST(chunk->payload_size >= 40);
+    BOOST_TEST(chunk_list.size() == 4);
+
+    chunk = chunk_list.pop_chunk_with_size_at_least(10);
+    BOOST_TEST(chunk);
+    BOOST_TEST(chunk->payload_size >= 10);
+    BOOST_TEST(chunk_list.size() == 3);
+}
+
 /* ===================================================================================================== */
 /* ============================== CHUNK TESTS ===================================================== */
 /* ===================================================================================================== */
