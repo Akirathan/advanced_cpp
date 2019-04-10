@@ -112,6 +112,16 @@ public:
         return chunk_region_end_addr;
     }
 
+    const SmallBins & get_small_bins() const
+    {
+        return small_bins;
+    }
+
+    const LargeBin & get_large_bin() const
+    {
+        return large_bin;
+    }
+
 private:
     /// Denotes total size of memory that will be passed to small bins in initialization.
     /// Note that there has to be some space left in the rest of the memory at least for

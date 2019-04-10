@@ -38,6 +38,11 @@ public:
         return last_addr;
     }
 
+    const ChunkList & get_chunk_list() const
+    {
+        return large_chunk_list;
+    }
+
     void store_chunk(chunk_t *chunk)
     {
         assert(chunk);
