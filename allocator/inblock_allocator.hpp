@@ -122,8 +122,8 @@ private:
     const intptr_t heap_size = HeapHolder::heap.get_size();
     /// Chunk region is memory region covered by chunks and therefore used.
     /// There may be small amount of memory that is not covered by chunks.
-    const intptr_t chunk_region_start_addr;
-    const intptr_t chunk_region_end_addr;
+    intptr_t chunk_region_start_addr;
+    intptr_t chunk_region_end_addr;
     SmallBins small_bins;
     LargeBin large_bin;
 

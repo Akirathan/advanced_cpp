@@ -44,7 +44,6 @@ public:
     intptr_t initialize_memory(intptr_t start_addr, intptr_t end_addr)
     {
         assert(is_aligned(start_addr));
-        assert(is_aligned(end_addr));
 
         std::array<ChunkList, bin_count> initial_chunk_lists;
         intptr_t last_addr = start_addr;
