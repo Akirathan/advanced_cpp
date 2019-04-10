@@ -15,6 +15,9 @@ class SmallBins {
 public:
     static constexpr size_t gap_between_bins = 8;
     static constexpr size_t bin_count = 5;
+    /// Must not be too high - it if is high, it may happen that during split redundant
+    /// chunk that wont fit into any bin will be created. And there will be no way to
+    /// clean it up. In other words: if this number is too high, memory leaks may happen.
     static constexpr size_t min_chunk_size_for_bins = 16;
     static constexpr size_t max_chunk_size_for_bins = min_chunk_size_for_bins + ((bin_count - 1) * gap_between_bins);
 
