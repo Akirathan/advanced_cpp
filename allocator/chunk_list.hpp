@@ -29,6 +29,26 @@ public:
         return first_chunk == nullptr;
     }
 
+    size_t size() const
+    {
+        if (is_empty()) {
+            return 0;
+        }
+
+        if (contains_just_one_element()) {
+            return 1;
+        }
+
+        size_t list_size = 1;
+        chunk_t *chunk = first_chunk->next;
+        while (chunk != first_chunk) {
+            list_size++;
+            chunk = chunk->next;
+        }
+
+        return list_size;
+    }
+
     void prepend_chunk(chunk_t *chunk)
     {
         assert(chunk);
