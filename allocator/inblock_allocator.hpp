@@ -466,6 +466,17 @@ public:
         // TODO
     }
 
+    /**
+     * Finds a chunk which is greater than payload_size and removes it from the list.
+     * @param payload_size
+     * @return May return nullptr if no such chunk is found.
+     */
+    chunk_t * get_chunk_with_size_at_least(size_t payload_size)
+    {
+        // TODO
+        return nullptr;
+    }
+
 private:
     chunk_t *chunks;
 };
@@ -475,23 +486,36 @@ public:
 
     void store_chunk(chunk_t *chunk)
     {
+        // TODO
+    }
 
+    void store_chunks(const ChunkList &chunks)
+    {
+        // TODO
     }
 
     /**
-     * Gets chunk with given size.
-     * @param num_bytes
-     * @return
+     * Finds a chunk which is greater than payload_size and removes it from the list.
+     * @param payload_size
+     * @return May return nullptr if no such chunk is found.
      */
-    chunk_t * get_chunk(size_t num_bytes)
+    chunk_t * get_chunk_with_size_at_least(size_t payload_size)
     {
-
+        // TODO
+        return nullptr;
     }
 
-    bool contains_chunk_with_size_at_least(size_t num_bytes) const
+    /**
+     * Returns first unsorted chunk.
+     * @return May return nullptr if there is no chunk.
+     */
+    chunk_t * get_first_chunk()
     {
-
+        return unsorted_chunks.pop_first_chunk();
     }
+
+private:
+    ChunkList unsorted_chunks;
 };
 
 
@@ -573,15 +597,12 @@ public:
 
     T * allocate(size_t n)
     {
-        T *allocated_space = nullptr;
         if (small_bins.contains_bin_with_chunk_size(n)) {
-            allocated_space = allocate_in_small_bins(n);
-            if (allocated_space) {
-                return allocated_space;
-            }
-            // Try to take chunk from unsorted_bin.
+            return allocate_in_small_bins(n);
         }
-
+        else {
+            return allocate_in_large_bin(n);
+        }
     }
 
 private:
@@ -599,10 +620,61 @@ private:
 
     T * allocate_in_small_bins(size_t n)
     {
-        chunk_t *allocated_chunk = small_bins.allocate_chunk(n);
-        if (!allocated_chunk) {
+        size_t bytes_num = byte_count(n);
+        chunk_t *chunk_for_allocation = small_bins.allocate_chunk(bytes_num);
+        if (!chunk_for_allocation) {
+            chunk_t *bigger_chunk = find_chunk_with_size_at_least(bytes_num);
+            if (!bigger_chunk) {
+                throw AllocatorException{"Run out of memory"};
+            }
 
+            if (is_chunk_splittable(bigger_chunk, bytes_num)) {
+                chunk_for_allocation = split_chunk(bigger_chunk, bytes_num);
+                unsorted_bin.store_chunk(bigger_chunk);
+            }
+            else {
+                chunk_for_allocation = bigger_chunk;
+            }
+
+            refill_small_bins();
         }
+
+        return use_chunk(chunk_for_allocation);
+    }
+
+    void refill_small_bins()
+    {
+        //TODO: Perhaps some smarter algorithm?
+        chunk_t *some_chunk = unsorted_bin.get_first_chunk();
+        if (!some_chunk) {
+            return;
+        }
+
+        ChunkList residue_chunks = small_bins.add_chunk(some_chunk);
+        unsorted_bin.store_chunks(residue_chunks);
+    }
+
+    T * allocate_in_large_bin(size_t n)
+    {
+
+    }
+
+    /// May return nullptr if there is no chunk with size at least payload_size.
+    chunk_t * find_chunk_with_size_at_least(size_t payload_size)
+    {
+        chunk_t *chunk = unsorted_bin.get_chunk_with_size_at_least(payload_size);
+        if (!chunk) {
+            chunk = large_bin.get_chunk_with_size_at_least(payload_size);
+            if (!chunk) {
+                chunk = consolidate_chunk(payload_size);
+            }
+        }
+
+        if (chunk) {
+            assert(chunk->payload_size >= payload_size);
+        }
+
+        return chunk;
     }
 
     void initialize_memory()
@@ -626,9 +698,35 @@ private:
         return initialize_chunk_in_region(chunk_start_addr, heap_end_addr);
     }
 
+    /**
+     * Traverse the whole memory and searches for neighbouring free chunks which are
+     * merged together. These free chunks are removed from any lists.
+     * Note that this method should be called only in case when there is not enough
+     * free chunks in large bins and unsorted bin.
+     * @param payload_size
+     * @return
+     */
+    chunk_t * consolidate_chunk(size_t payload_size)
+    {
+        // TODO
+        return nullptr;
+    }
+
+    T * use_chunk(chunk_t *chunk)
+    {
+        assert(chunk);
+        chunk->used = true;
+        return reinterpret_cast<T *>(get_chunk_data(chunk));
+    }
+
     bool contains_enough_space_for_chunk(intptr_t start_addr, intptr_t end_addr) const
     {
         return fits_in_memory_region(start_addr, min_payload_size, end_addr);
+    }
+
+    size_t byte_count(size_t type_count) const
+    {
+        return type_size * type_count;
     }
 
 };
