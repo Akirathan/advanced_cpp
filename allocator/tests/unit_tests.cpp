@@ -4,6 +4,7 @@
 #include <array>
 #include <memory>
 #include <iostream>
+#include <functional>
 #include <boost/test/included/unit_test.hpp>
 #include "../inblock_allocator.hpp"
 #include "../small_bins.hpp"
@@ -19,7 +20,7 @@ struct holder {
 
 inblock_allocator_heap holder::heap;
 
-static constexpr size_t memory_size = 5 * 1024;
+static constexpr size_t memory_size = 5 * 1024 * 1024;
 static std::array<uint8_t, memory_size> memory = {};
 
 
@@ -52,6 +53,29 @@ static void fill_memory_region_with_random_data(intptr_t start_addr, intptr_t en
         start_addr++;
     }
 }
+
+static void traverse_all_memory(intptr_t start_addr, intptr_t end_addr, std::function<void(chunk_t *)> func)
+{
+    chunk_t *chunk = reinterpret_cast<chunk_t *>(start_addr);
+    while (start_addr != end_addr) {
+        start_addr += get_chunk_size(chunk);
+        func(chunk);
+        chunk = next_chunk_in_mem(chunk);
+    }
+}
+
+static double count_chunk_headers_overhead(intptr_t start_addr, intptr_t end_addr)
+{
+    size_t total_memory = diff(start_addr, end_addr);
+
+    size_t chunk_headers_size_sum = 0;
+    traverse_all_memory(start_addr, end_addr, [&](chunk_t *chunk) {
+        chunk_headers_size_sum += chunk_header_size;
+    });
+
+    return ((double)total_memory / (double)chunk_headers_size_sum);
+}
+
 
 std::pair<intptr_t, intptr_t> get_aligned_memory_region(size_t size)
 {
@@ -125,6 +149,29 @@ static std::vector<std::unique_ptr<chunk_t>> create_chunks(size_t count)
     }
     return chunk_vector;
 }
+
+static SmallBins initialize_small_bins(size_t mem_size, intptr_t *start_addr_out, intptr_t *end_addr_out)
+{
+    auto [start_addr, end_addr] = get_aligned_memory_region(mem_size);
+    fill_memory_region_with_random_data(start_addr, end_addr);
+
+    SmallBins small_bins;
+    intptr_t returned_addr = small_bins.initialize_memory(start_addr, end_addr);
+    BOOST_TEST(returned_addr <= end_addr);
+    BOOST_TEST_MESSAGE("Small bins initialized with " << mem_size << " discarded " << diff(returned_addr, end_addr));
+    BOOST_TEST_MESSAGE("Chunk headers memory overhead = " << count_chunk_headers_overhead(start_addr, returned_addr));
+    dump_bin_sizes(small_bins);
+
+    if (start_addr_out && end_addr_out) {
+        *start_addr_out = start_addr;
+        *end_addr_out = returned_addr;
+    }
+    return small_bins;
+}
+
+/* ===================================================================================================== */
+/* ============================== CHUNK LIST TESTS ===================================================== */
+/* ===================================================================================================== */
 
 BOOST_AUTO_TEST_CASE(chunk_list_prepend_test)
 {
@@ -248,6 +295,9 @@ BOOST_AUTO_TEST_CASE(chunk_list_remove_more_chunks_test)
     BOOST_TEST(chunk_list.is_empty());
 }
 
+/* ===================================================================================================== */
+/* ============================== CHUNK TESTS ===================================================== */
+/* ===================================================================================================== */
 /**
  * Initialize two chunks by hand a fill them with some magic payload. Then check
  * for consistency of those payloads.
@@ -318,6 +368,9 @@ BOOST_AUTO_TEST_CASE(chunk_more_splits_test)
     }
 }
 
+/* ===================================================================================================== */
+/* ============================== HEAP TESTS ===================================================== */
+/* ===================================================================================================== */
 BOOST_AUTO_TEST_CASE(aligned_heap_test)
 {
     std::array<uint8_t, 100> mem = {};
@@ -329,6 +382,10 @@ BOOST_AUTO_TEST_CASE(aligned_heap_test)
     BOOST_TEST(heap.get_size() <= 100);
 }
 
+
+/* ===================================================================================================== */
+/* ============================== SMALL BINS TESTS ===================================================== */
+/* ===================================================================================================== */
 BOOST_AUTO_TEST_CASE(small_bins_memory_initialization)
 {
     auto [start_addr, end_addr] = get_aligned_memory_region(1024);
@@ -339,25 +396,16 @@ BOOST_AUTO_TEST_CASE(small_bins_memory_initialization)
 
     BOOST_TEST(returned_addr <= end_addr);
 
-    // Traverse memory from start_addr to returned_addr and check whether it contains chunks.
-    chunk_t *chunk = reinterpret_cast<chunk_t *>(start_addr);
-    while (start_addr != returned_addr) {
-        start_addr += get_chunk_size(chunk);
+    traverse_all_memory(start_addr, returned_addr, [](chunk_t *chunk) {
         BOOST_TEST(is_chunk_in_initialized_state(chunk));
-        chunk = next_chunk_in_mem(chunk);
-    }
+    });
 }
 
 BOOST_AUTO_TEST_CASE(small_bins_simple_allocation_test)
 {
-    auto [start_addr, end_addr] = get_aligned_memory_region(80);
-    fill_memory_region_with_random_data(start_addr, end_addr);
+    SmallBins small_bins = initialize_small_bins(80, nullptr, nullptr);
 
-    SmallBins small_bins;
-    intptr_t returned_addr = small_bins.initialize_memory(start_addr, end_addr);
-    BOOST_TEST(returned_addr <= end_addr);
-
-    size_t chunk_payload_size = small_bins.min_chunk_size_for_bins;
+    size_t chunk_payload_size = SmallBins::min_chunk_size_for_bins;
     BOOST_TEST(small_bins.contains_bin_with_chunk_size(chunk_payload_size));
     chunk_t *allocated_chunk = small_bins.allocate_chunk(chunk_payload_size);
     BOOST_TEST(allocated_chunk);
@@ -367,28 +415,15 @@ BOOST_AUTO_TEST_CASE(small_bins_simple_allocation_test)
 
 BOOST_AUTO_TEST_CASE(small_bins_allocation_failed_test)
 {
-    auto [start_addr, end_addr] = get_aligned_memory_region(80);
-    fill_memory_region_with_random_data(start_addr, end_addr);
+    SmallBins small_bins = initialize_small_bins(80, nullptr, nullptr);
 
-    SmallBins small_bins;
-    intptr_t returned_addr = small_bins.initialize_memory(start_addr, end_addr);
-    BOOST_TEST(returned_addr <= end_addr);
-
-    chunk_t *allocated_chunk = small_bins.allocate_chunk(small_bins.max_chunk_size_for_bins);
+    chunk_t *allocated_chunk = small_bins.allocate_chunk(SmallBins::max_chunk_size_for_bins);
     BOOST_TEST(allocated_chunk == nullptr);
 }
 
-BOOST_AUTO_TEST_CASE(small_bins_normal_allocation_test)
+BOOST_AUTO_TEST_CASE(small_bins_split_bigger_chunk_allocation_test)
 {
-    const size_t mem_size = 1024;
-    auto [start_addr, end_addr] = get_aligned_memory_region(mem_size);
-    fill_memory_region_with_random_data(start_addr, end_addr);
-
-    SmallBins small_bins;
-    intptr_t returned_addr = small_bins.initialize_memory(start_addr, end_addr);
-    BOOST_TEST(returned_addr <= end_addr);
-    BOOST_TEST_MESSAGE("Small bins initialized with " << mem_size << " discarded " << diff(returned_addr, end_addr));
-    dump_bin_sizes(small_bins);
+    SmallBins small_bins = initialize_small_bins(1024, nullptr, nullptr);
 
     // Allocate all chunks from smallest bin.
     size_t smallest_payload_size = SmallBins::min_chunk_size_for_bins;
@@ -400,11 +435,45 @@ BOOST_AUTO_TEST_CASE(small_bins_normal_allocation_test)
     BOOST_TEST_MESSAGE("Bin sizes after allocation of all smallest chunks:");
     dump_bin_sizes(small_bins);
 
-    // Try to allocate one more chunk from smallest bin - small bins should split bigger chunk
+    // Try to allocate one more chunk from smallest bin - small bins should split bigger chunk.
     chunk_t *chunk = small_bins.allocate_chunk(smallest_payload_size);
     BOOST_TEST(chunk);
-    BOOST_TEST(chunk->payload_size == smallest_payload_size);
+    BOOST_TEST(chunk->payload_size >= smallest_payload_size);
     BOOST_TEST_MESSAGE("Bin sizes after allocation of one more smallest chunk (should split bigger chunk):");
     dump_bin_sizes(small_bins);
+}
+
+
+BOOST_AUTO_TEST_CASE(small_bins_alloc_all_memory_test)
+{
+    intptr_t start_addr = 0;
+    intptr_t end_addr = 0;
+    SmallBins small_bins = initialize_small_bins(1024 * 1024, &start_addr, &end_addr);
+
+    size_t chunks_count_before_alloc = small_bins.get_total_chunks_size();
+    BOOST_TEST_MESSAGE("Chunks count before alloc = " << chunks_count_before_alloc);
+
+    // Allocate all chunks from smallest bin, also count how many chunks were allocated.
+    size_t smallest_payload_size = SmallBins::min_chunk_size_for_bins;
+    chunk_t *allocated_chunk = small_bins.allocate_chunk(smallest_payload_size);
+    size_t allocated_chunks_count = 1;
+    while (allocated_chunk) {
+        allocated_chunk = small_bins.allocate_chunk(smallest_payload_size);
+        if (allocated_chunk) {
+            allocated_chunks_count++;
+        }
+    }
+    BOOST_TEST(small_bins.get_total_chunks_size() == 0);
+    BOOST_TEST_MESSAGE("Allocated chunks count = " << allocated_chunks_count);
+    BOOST_TEST(allocated_chunks_count >= chunks_count_before_alloc);
+
+    size_t should_test = 492;
+    traverse_all_memory(start_addr, end_addr, [&](chunk_t *chunk) {
+        if (should_test == 0) {
+            BOOST_TEST(chunk->payload_size >= smallest_payload_size);
+            should_test = 492;
+        }
+        should_test--;
+    });
 }
 
