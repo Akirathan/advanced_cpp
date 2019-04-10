@@ -14,12 +14,6 @@
 
 static constexpr uint8_t MAGIC = 0xA3;
 
-struct holder {
-    static inblock_allocator_heap heap;
-};
-
-inblock_allocator_heap holder::heap;
-
 static constexpr size_t memory_size = 5 * 1024 * 1024;
 static std::array<uint8_t, memory_size> memory = {};
 
@@ -52,6 +46,11 @@ static bool is_payload_aligned(const chunk_t *chunk)
     return is_aligned((intptr_t)data_ptr);
 }
 
+static bool is_chunk_in_initialized_state(const chunk_t *chunk)
+{
+    return chunk->payload_size > 0 && chunk->used == 0;
+}
+
 static void fill_memory_region_with_random_data(intptr_t start_addr, intptr_t end_addr)
 {
     while (start_addr < end_addr) {
@@ -71,6 +70,14 @@ static void traverse_all_memory(intptr_t start_addr, intptr_t end_addr, std::fun
     }
 }
 
+static void check_memory_filled_with_chunks(intptr_t start_addr, intptr_t end_addr)
+{
+    traverse_all_memory(start_addr, end_addr, [](chunk_t *chunk) {
+        BOOST_TEST(is_chunk_in_initialized_state(chunk));
+        BOOST_TEST(is_payload_aligned(chunk));
+    });
+}
+
 static double count_chunk_headers_overhead(intptr_t start_addr, intptr_t end_addr)
 {
     size_t total_memory = diff(start_addr, end_addr);
@@ -80,7 +87,7 @@ static double count_chunk_headers_overhead(intptr_t start_addr, intptr_t end_add
         chunk_headers_size_sum += chunk_header_size;
     });
 
-    return ((double)total_memory / (double)chunk_headers_size_sum);
+    return ((double)chunk_headers_size_sum / (double)total_memory);
 }
 
 
@@ -99,10 +106,6 @@ std::pair<intptr_t, intptr_t> get_aligned_memory_region(size_t size)
     return std::make_pair(start_addr, end_addr);
 }
 
-static bool is_chunk_in_initialized_state(const chunk_t *chunk)
-{
-    return chunk->payload_size > 0 && chunk->used == 0;
-}
 
 static bool equals_some(const chunk_t *chunk, const std::vector<chunk_t *> &chunks)
 {
@@ -147,6 +150,7 @@ static void dump_bin_sizes(const SmallBins &small_bins)
         BOOST_TEST_MESSAGE("Bin with chunk sizes " << chunk_size << " contains " << bin_size << " chunks.");
     }
 }
+
 
 static std::vector<std::unique_ptr<chunk_t>> create_chunks(size_t count)
 {
@@ -565,4 +569,73 @@ BOOST_AUTO_TEST_CASE(large_bin_memory_init_test)
         BOOST_TEST(is_chunk_in_initialized_state(chunk));
         BOOST_TEST(is_payload_aligned(chunk));
     });
+}
+
+
+/* ===================================================================================================== */
+/* ============================== ALLOCATOR TESTS ===================================================== */
+/* ===================================================================================================== */
+
+struct holder {
+    static inblock_allocator_heap heap;
+};
+
+inblock_allocator_heap holder::heap;
+
+template <typename T, typename HeapHolder>
+static void dump_allocator_stats(const inblock_allocator<T, HeapHolder> &allocator)
+{
+    BOOST_TEST_MESSAGE("=========== ALLOCATOR STATS ===================");
+    BOOST_TEST_MESSAGE("MEMORY USAGE:");
+    intptr_t used_mem_start = allocator.get_chunk_region_start_addr();
+    intptr_t used_mem_end = allocator.get_chunk_region_end_addr();
+    size_t availabe_mem_size = diff(holder::heap.get_start_addr(), holder::heap.get_end_addr());
+    size_t used_mem_size = diff(used_mem_start, used_mem_end);
+    BOOST_TEST_MESSAGE("\t Available memory size = " << availabe_mem_size);
+    BOOST_TEST_MESSAGE("\t Used memory size = " << used_mem_size);
+    BOOST_TEST(used_mem_size <= availabe_mem_size);
+    BOOST_TEST_MESSAGE("\t Difference = " << availabe_mem_size - used_mem_size);
+
+    BOOST_TEST_MESSAGE("CHUNK HEADERS OVERHEAD:");
+    BOOST_TEST_MESSAGE("\t " << count_chunk_headers_overhead(used_mem_start, used_mem_end));
+
+
+    BOOST_TEST_MESSAGE("==============================");
+    BOOST_TEST_MESSAGE("LARGE BIN STATS:");
+    const ChunkList &large_bin_chunk_list = allocator.get_large_bin().get_chunk_list();
+    BOOST_TEST_MESSAGE("\t Number of chunks: " << large_bin_chunk_list.size());
+    size_t large_bin_total_chunk_size = 0;
+    large_bin_chunk_list.traverse([&](const chunk_t *chunk) {
+        large_bin_total_chunk_size += chunk->payload_size;
+    });
+    BOOST_TEST_MESSAGE("\t Total size of chunks: " << large_bin_total_chunk_size);
+
+    BOOST_TEST_MESSAGE("==============================");
+    BOOST_TEST_MESSAGE("SMALL BIN STATS:");
+    dump_bin_sizes(allocator.get_small_bins());
+
+    BOOST_TEST_MESSAGE("============= END OF ALLOCATOR STATS =================");
+}
+
+static void init_heap(size_t mem_size)
+{
+    auto [start_addr, end_addr] = get_aligned_memory_region(mem_size);
+    fill_memory_region_with_random_data(start_addr, end_addr);
+    size_t num_bytes = diff(start_addr, end_addr);
+    holder::heap((void *)start_addr, num_bytes);
+}
+
+
+BOOST_AUTO_TEST_CASE(allocator_initialize_memory_test)
+{
+    init_heap(512);
+    inblock_allocator<int, holder> allocator;
+
+    dump_allocator_stats(allocator);
+
+    intptr_t used_mem_start = allocator.get_chunk_region_start_addr();
+    intptr_t used_mem_end = allocator.get_chunk_region_end_addr();
+
+    BOOST_TEST_MESSAGE("Checking if memory is filled with chunks");
+    check_memory_filled_with_chunks(used_mem_start, used_mem_end);
 }
