@@ -16,7 +16,7 @@ public:
     static constexpr size_t gap_between_bins = 8;
     static constexpr size_t bin_count = 5;
     static constexpr size_t min_chunk_size_for_bins = 16;
-    static constexpr size_t max_chunk_size_for_bins = min_chunk_size_for_bins + (bin_count * gap_between_bins);
+    static constexpr size_t max_chunk_size_for_bins = min_chunk_size_for_bins + ((bin_count - 1) * gap_between_bins);
 
     /**
      * Initializes some small bins with some chunks within the address range given as parameters.
