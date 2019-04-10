@@ -76,6 +76,24 @@ public:
         first_chunk = chunk;
     }
 
+    void append_chunk(chunk_t *chunk)
+    {
+        assert(chunk);
+
+        if (is_empty()) {
+            first_chunk = chunk;
+        }
+        else if (contains_just_one_element()) {
+            link_chunks(first_chunk, chunk);
+            link_chunks(chunk, first_chunk);
+        }
+        else {
+            chunk_t *last = first_chunk->prev;
+            link_chunks(last, chunk);
+            link_chunks(chunk, first_chunk);
+        }
+    }
+
     chunk_t * find_free_chunk() const
     {
         if (is_empty()) {
@@ -204,6 +222,9 @@ private:
     }
 
 };
+
+
+// TODO: Add SortedChunkList
 
 
 #endif //CHUNK_LIST_HPP
