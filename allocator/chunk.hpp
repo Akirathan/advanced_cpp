@@ -6,7 +6,6 @@
 struct chunk_header_t {
     chunk_header_t *prev;
     chunk_header_t *next;
-    /// Payload must not be zero, unless this is the last (delimiter) chunk.
     size_t payload_size;
     bool used;
 };
@@ -18,12 +17,6 @@ constexpr size_t chunk_header_size = chunk_header_size_with_padding;
 constexpr size_t min_payload_size = 16;
 constexpr size_t min_chunk_size = chunk_header_size + min_payload_size;
 
-
-/// Returns true if the chunk is the last delimiter chunk in the memory.
-inline bool is_last_chunk_in_mem(const chunk_t *chunk)
-{
-    return chunk->payload_size == 0;
-}
 
 inline bool fits_in_memory_region(intptr_t start_addr, size_t payload_size, intptr_t end_addr)
 {
@@ -67,7 +60,6 @@ inline chunk_t * initialize_chunk_in_region(intptr_t start_addr, intptr_t end_ad
 inline void * get_chunk_data(const chunk_t *chunk)
 {
     assert(chunk != nullptr);
-    assert(!is_last_chunk_in_mem(chunk));
     auto ptr = reinterpret_cast<intptr_t>(chunk);
     ptr += chunk_header_size_with_padding;
     return reinterpret_cast<void *>(ptr);
@@ -117,7 +109,6 @@ inline chunk_t * split_chunk(chunk_t *chunk, size_t new_chunk_payload_size)
 inline chunk_t * next_chunk_in_mem(const chunk_t *chunk)
 {
     assert(chunk != nullptr);
-    assert(!is_last_chunk_in_mem(chunk));
     auto ptr = reinterpret_cast<intptr_t>(chunk);
     ptr += chunk_header_size_with_padding;
     ptr += chunk->payload_size;
