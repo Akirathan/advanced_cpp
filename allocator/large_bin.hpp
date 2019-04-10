@@ -55,9 +55,9 @@ public:
      * @param payload_size
      * @return May return nullptr if no such chunk is found.
      */
-    chunk_t * get_chunk_with_size_at_least(size_t payload_size)
+    chunk_t * pop_chunk_with_size_at_least(size_t payload_size)
     {
-        return large_chunk_list.get_chunk_with_size_at_least(payload_size);
+        return large_chunk_list.pop_chunk_with_size_at_least(payload_size);
     }
 
 private:

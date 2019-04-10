@@ -172,7 +172,7 @@ private:
     /// May return nullptr if there is no chunk with size at least payload_size.
     chunk_t * find_chunk_with_size_at_least(size_t payload_size)
     {
-        chunk_t *chunk = large_bin.get_chunk_with_size_at_least(payload_size);
+        chunk_t *chunk = large_bin.pop_chunk_with_size_at_least(payload_size);
         if (!chunk) {
             chunk = consolidate_chunk_with_size_at_least(payload_size);
         }
