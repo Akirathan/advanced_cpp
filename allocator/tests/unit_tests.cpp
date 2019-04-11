@@ -608,7 +608,7 @@ BOOST_AUTO_TEST_CASE(small_bins_alloc_all_memory_test)
     intptr_t end_addr = 0;
     SmallBins small_bins = initialize_small_bins(1024 * 1024, &start_addr, &end_addr);
 
-    size_t chunks_count_before_alloc = small_bins.get_total_chunks_size();
+    size_t chunks_count_before_alloc = small_bins.get_total_chunks_count();
     BOOST_TEST_MESSAGE("Chunks count before alloc = " << chunks_count_before_alloc);
 
     // Allocate all chunks from smallest bin, also count how many chunks were allocated.
@@ -621,7 +621,7 @@ BOOST_AUTO_TEST_CASE(small_bins_alloc_all_memory_test)
             allocated_chunks_count++;
         }
     }
-    BOOST_TEST(small_bins.get_total_chunks_size() == 0);
+    BOOST_TEST(small_bins.get_total_chunks_count() == 0);
     BOOST_TEST_MESSAGE("Allocated chunks count = " << allocated_chunks_count);
     BOOST_TEST(allocated_chunks_count >= chunks_count_before_alloc);
 

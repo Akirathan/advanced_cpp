@@ -80,7 +80,7 @@ public:
         return bin.chunk_list.size();
     }
 
-    size_t get_total_chunks_size() const
+    size_t get_total_chunks_count() const
     {
         size_t total_size = 0;
         for (const bin_t &bin : bins) {
