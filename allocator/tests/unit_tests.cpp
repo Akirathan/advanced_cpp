@@ -867,3 +867,23 @@ BOOST_AUTO_TEST_CASE(allocator_two_phase_small_allocs_consistency_test)
         BOOST_TEST(check_payload_consistency(data.first, data.second));
     }
 }
+
+BOOST_AUTO_TEST_CASE(allocator_consolidate_memory_test)
+{
+    init_heap(10 * 1024);
+    inblock_allocator<uint8_t, holder> allocator;
+
+    auto stats = get_allocator_stats(allocator);
+    dump_allocator_stats(stats);
+    check_allocator_stats(stats);
+    check_allocator_consistency(stats);
+
+    size_t data_size = 5 * 1024;
+    uint8_t * data = allocator.allocate(data_size);
+    BOOST_TEST(data);
+
+    BOOST_TEST_MESSAGE("Checking consistency after big allocation...");
+    stats = get_allocator_stats(allocator);
+    dump_allocator_stats(stats);
+    check_allocator_consistency(stats);
+}
