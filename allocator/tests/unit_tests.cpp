@@ -633,41 +633,6 @@ BOOST_AUTO_TEST_CASE(small_bins_split_bigger_chunk_allocation_test)
 }
 
 
-BOOST_AUTO_TEST_CASE(small_bins_alloc_all_memory_test)
-{
-    intptr_t start_addr = 0;
-    intptr_t end_addr = 0;
-    SmallBins small_bins = initialize_small_bins(1024 * 1024, &start_addr, &end_addr);
-
-    size_t chunks_count_before_alloc = small_bins.get_total_chunks_count();
-    BOOST_TEST_MESSAGE("Chunks count before alloc = " << chunks_count_before_alloc);
-
-    // Allocate all chunks from smallest bin, also count how many chunks were allocated.
-    size_t smallest_payload_size = SmallBins::min_chunk_size_for_bins;
-    chunk_t *allocated_chunk = small_bins.allocate_chunk(smallest_payload_size);
-    size_t allocated_chunks_count = 1;
-    while (allocated_chunk) {
-        allocated_chunk = small_bins.allocate_chunk(smallest_payload_size);
-        if (allocated_chunk) {
-            allocated_chunks_count++;
-        }
-    }
-    BOOST_TEST(small_bins.get_total_chunks_count() == 0);
-    BOOST_TEST_MESSAGE("Allocated chunks count = " << allocated_chunks_count);
-    BOOST_TEST(allocated_chunks_count >= chunks_count_before_alloc);
-
-    size_t should_test = 492;
-    traverse_all_memory(start_addr, end_addr, [&](chunk_t *chunk) {
-        if (should_test == 0) {
-            BOOST_TEST(chunk->payload_size >= smallest_payload_size);
-            BOOST_TEST(is_payload_aligned(chunk));
-            should_test = 492;
-        }
-        should_test--;
-    });
-}
-
-
 /* ===================================================================================================== */
 /* ============================== LARGE BIN TESTS ===================================================== */
 /* ===================================================================================================== */
