@@ -118,7 +118,7 @@ public:
             if (first_chunk->payload_size >= payload_size) {
                 chunk_t *old_first_chunk = first_chunk;
                 remove_chunk(old_first_chunk);
-                return first_chunk;
+                return old_first_chunk;
             }
         }
         else {

@@ -375,6 +375,17 @@ BOOST_AUTO_TEST_CASE(chunk_list_try_remove_test)
     BOOST_TEST(!chunk_list.try_remove_chunk(completely_different_chunk.get()));
 }
 
+BOOST_AUTO_TEST_CASE(chunk_list_pop_chunk_with_size_at_least_simple_test)
+{
+    auto chunk = std::make_unique<chunk_t>();
+    chunk->payload_size = 50;
+
+    ChunkList chunk_list{chunk.get()};
+
+    chunk_t *popped_chunk = chunk_list.pop_chunk_with_size_at_least(20);
+    BOOST_TEST(popped_chunk == chunk.get());
+}
+
 BOOST_AUTO_TEST_CASE(chunk_list_pop_chunk_with_size_at_least_first_chunk_test)
 {
     std::vector<std::unique_ptr<chunk_t>> chunk_vector;
