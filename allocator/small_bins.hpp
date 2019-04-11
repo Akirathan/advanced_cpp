@@ -96,17 +96,16 @@ public:
      */
     chunk_t * allocate_chunk(size_t payload_size)
     {
-        assert(contains_bin_with_chunk_size(payload_size));
+        chunk_t *free_chunk = nullptr;
+        if (contains_bin_with_chunk_size(payload_size)) {
+            bin_t &bin = get_bin_with_chunk_size(payload_size);
+            free_chunk = allocate_in_bin(bin);
+        }
 
-        bin_t &bin = get_bin_with_chunk_size(payload_size);
-        chunk_t *free_chunk = bin.chunk_list.find_free_chunk();
-        if (free_chunk) {
-            bin.chunk_list.remove_chunk(free_chunk);
-            return free_chunk;
+        if (!free_chunk) {
+            free_chunk = allocate_in_bin_with_higher_chunk_size(payload_size);
         }
-        else {
-            return allocate_in_bin_with_higher_chunk_size(payload_size);
-        }
+        return free_chunk;
     }
 
     /**
@@ -161,6 +160,15 @@ private:
         }
     }
 
+    chunk_t * allocate_in_bin(bin_t &bin)
+    {
+        chunk_t *free_chunk = bin.chunk_list.find_free_chunk();
+        if (free_chunk) {
+            bin.chunk_list.remove_chunk(free_chunk);
+        }
+        return free_chunk;
+    }
+
     chunk_t * allocate_in_bin_with_higher_chunk_size(size_t payload_size)
     {
         chunk_t *new_chunk = nullptr;
@@ -175,8 +183,23 @@ private:
                 new_chunk = bigger_free_chunk;
             }
         }
-
         return new_chunk;
+    }
+
+    /// Finds first free chunk with size greater than payload_size parameter.
+    /// If there is no such chunk, nullptr is returned.
+    chunk_t * find_and_pop_smallest_free_chunk(size_t payload_size)
+    {
+        for (bin_t &bin : bins) {
+            if (bin.chunk_sizes > payload_size) {
+                chunk_t *free_chunk = bin.chunk_list.find_free_chunk();
+                if (free_chunk) {
+                    bin.chunk_list.remove_chunk(free_chunk);
+                    return free_chunk;
+                }
+            }
+        }
+        return nullptr;
     }
 
     chunk_t * disperse_chunk_into_all_bins(chunk_t *chunk)
@@ -207,22 +230,6 @@ private:
 
         bin_t &bin = get_bin_with_chunk_size(chunk->payload_size);
         bin.chunk_list.prepend_chunk(chunk);
-    }
-
-    /// Finds first free chunk with size greater than payload_size parameter.
-    /// If there is no such chunk, nullptr is returned.
-    chunk_t * find_and_pop_smallest_free_chunk(size_t payload_size)
-    {
-        for (bin_t &bin : bins) {
-            if (bin.chunk_sizes > payload_size) {
-                chunk_t *free_chunk = bin.chunk_list.find_free_chunk();
-                if (free_chunk) {
-                    bin.chunk_list.remove_chunk(free_chunk);
-                    return free_chunk;
-                }
-            }
-        }
-        return nullptr;
     }
 
     bin_t & get_bin_with_chunk_size(size_t chunk_size)
