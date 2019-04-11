@@ -14,7 +14,7 @@ using chunk_t = chunk_header_t;
 
 constexpr size_t chunk_header_size_with_padding = align_size_up(sizeof(chunk_header_t));
 constexpr size_t chunk_header_size = chunk_header_size_with_padding;
-constexpr size_t min_payload_size = 16;
+constexpr size_t min_payload_size = 8;
 constexpr size_t min_chunk_size = chunk_header_size + min_payload_size;
 
 
