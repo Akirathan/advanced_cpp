@@ -582,39 +582,96 @@ struct holder {
 
 inblock_allocator_heap holder::heap;
 
+struct allocator_stats_t {
+    intptr_t used_mem_start;
+    intptr_t used_mem_end;
+    size_t available_mem_size;
+    size_t used_mem_size;
+    size_t large_bin_chunk_count;
+    size_t large_bin_total_chunk_size;
+    size_t small_bins_chunk_count;
+    size_t small_bins_total_chunk_size;
+};
+
 template <typename T, typename HeapHolder>
-static void dump_allocator_stats(const inblock_allocator<T, HeapHolder> &allocator)
+allocator_stats_t get_allocator_stats(const inblock_allocator<T, HeapHolder> &allocator)
+{
+    allocator_stats_t stats;
+    stats.used_mem_start = allocator.get_chunk_region_start_addr();
+    stats.used_mem_end = allocator.get_chunk_region_end_addr();
+    stats.available_mem_size = diff(holder::heap.get_start_addr(), holder::heap.get_end_addr());
+    stats.used_mem_size = diff(stats.used_mem_start, stats.used_mem_end);
+
+    const ChunkList &large_bin_chunk_list = allocator.get_large_bin().get_chunk_list();
+    stats.large_bin_chunk_count = large_bin_chunk_list.size();
+    stats.large_bin_total_chunk_size = 0;
+    large_bin_chunk_list.traverse([&](const chunk_t *chunk) {
+        stats.large_bin_total_chunk_size += chunk->payload_size;
+    });
+
+    // Get small bins stats.
+    const SmallBins &small_bins = allocator.get_small_bins();
+    stats.small_bins_chunk_count = 0;
+    stats.small_bins_total_chunk_size = 0;
+    for (size_t chunk_size = SmallBins::min_chunk_size_for_bins;
+         chunk_size <= SmallBins::max_chunk_size_for_bins;
+         chunk_size += alignment)
+    {
+        assert(small_bins.contains_bin_with_chunk_size(chunk_size));
+        size_t bin_size = small_bins.get_bin_size(chunk_size);
+        stats.small_bins_chunk_count += bin_size;
+        stats.small_bins_total_chunk_size += bin_size * chunk_size;
+    }
+
+    return stats;
+}
+
+static void dump_allocator_stats(const allocator_stats_t &stats)
 {
     BOOST_TEST_MESSAGE("=========== ALLOCATOR STATS ===================");
     BOOST_TEST_MESSAGE("MEMORY USAGE:");
-    intptr_t used_mem_start = allocator.get_chunk_region_start_addr();
-    intptr_t used_mem_end = allocator.get_chunk_region_end_addr();
-    size_t availabe_mem_size = diff(holder::heap.get_start_addr(), holder::heap.get_end_addr());
-    size_t used_mem_size = diff(used_mem_start, used_mem_end);
-    BOOST_TEST_MESSAGE("\t Available memory size = " << availabe_mem_size);
-    BOOST_TEST_MESSAGE("\t Used memory size = " << used_mem_size);
-    BOOST_TEST(used_mem_size <= availabe_mem_size);
-    BOOST_TEST_MESSAGE("\t Difference = " << availabe_mem_size - used_mem_size);
+    BOOST_TEST_MESSAGE("\t Available memory size = " << stats.available_mem_size);
+    BOOST_TEST_MESSAGE("\t Used memory size = " << stats.used_mem_size);
+    BOOST_TEST_MESSAGE("\t Difference = " << stats.available_mem_size - stats.used_mem_size);
 
     BOOST_TEST_MESSAGE("CHUNK HEADERS OVERHEAD:");
-    BOOST_TEST_MESSAGE("\t " << count_chunk_headers_overhead(used_mem_start, used_mem_end));
-
+    BOOST_TEST_MESSAGE("\t " << count_chunk_headers_overhead(stats.used_mem_start, stats.used_mem_end));
 
     BOOST_TEST_MESSAGE("==============================");
     BOOST_TEST_MESSAGE("LARGE BIN STATS:");
-    const ChunkList &large_bin_chunk_list = allocator.get_large_bin().get_chunk_list();
-    BOOST_TEST_MESSAGE("\t Number of chunks: " << large_bin_chunk_list.size());
-    size_t large_bin_total_chunk_size = 0;
-    large_bin_chunk_list.traverse([&](const chunk_t *chunk) {
-        large_bin_total_chunk_size += chunk->payload_size;
-    });
-    BOOST_TEST_MESSAGE("\t Total size of chunks: " << large_bin_total_chunk_size);
+    BOOST_TEST_MESSAGE("\t Number of chunks: " << stats.large_bin_chunk_count);
+    BOOST_TEST_MESSAGE("\t Total size of chunks: " << stats.large_bin_total_chunk_size);
 
     BOOST_TEST_MESSAGE("==============================");
     BOOST_TEST_MESSAGE("SMALL BIN STATS:");
-    dump_bin_sizes(allocator.get_small_bins());
+    BOOST_TEST_MESSAGE("\t Number of chunks: " << stats.small_bins_chunk_count);
+    BOOST_TEST_MESSAGE("\t Total size of chunks: " << stats.small_bins_total_chunk_size);
 
     BOOST_TEST_MESSAGE("============= END OF ALLOCATOR STATS =================");
+}
+
+static void check_allocator_stats(const allocator_stats_t &stats)
+{
+    BOOST_TEST(stats.used_mem_size <= stats.available_mem_size);
+}
+
+static void check_allocator_consistency(const allocator_stats_t &stats)
+{
+    size_t reachable_chunks_by_allocator = stats.small_bins_chunk_count + stats.large_bin_chunk_count;
+
+    size_t total_chunks_in_memory = 0;
+    size_t used_chunks = 0;
+    traverse_all_memory(stats.used_mem_start, stats.used_mem_end, [&](chunk_t *chunk) {
+        total_chunks_in_memory++;
+        if (chunk->used) {
+            used_chunks++;
+        }
+    });
+
+    BOOST_TEST_MESSAGE("Number of reachable chunks by allocator: " << reachable_chunks_by_allocator);
+    BOOST_TEST_MESSAGE("Number of total chunks in memory: " << total_chunks_in_memory);
+    BOOST_TEST_MESSAGE("Number of used chunks: " << used_chunks);
+    BOOST_TEST(reachable_chunks_by_allocator == total_chunks_in_memory - used_chunks);
 }
 
 static void init_heap(size_t mem_size)
@@ -631,11 +688,23 @@ BOOST_AUTO_TEST_CASE(allocator_initialize_memory_test)
     init_heap(512);
     inblock_allocator<int, holder> allocator;
 
-    dump_allocator_stats(allocator);
-
-    intptr_t used_mem_start = allocator.get_chunk_region_start_addr();
-    intptr_t used_mem_end = allocator.get_chunk_region_end_addr();
+    auto stats = get_allocator_stats(allocator);
+    dump_allocator_stats(stats);
+    check_allocator_stats(stats);
+    check_allocator_consistency(stats);
 
     BOOST_TEST_MESSAGE("Checking if memory is filled with chunks");
-    check_memory_filled_with_chunks(used_mem_start, used_mem_end);
+    check_memory_filled_with_chunks(stats.used_mem_start, stats.used_mem_end);
+}
+
+BOOST_AUTO_TEST_CASE(allocator_normal_alloc_test)
+{
+    init_heap(10 * 1024);
+    inblock_allocator<int, holder> allocator;
+
+    auto stats = get_allocator_stats(allocator);
+    dump_allocator_stats(stats);
+    check_allocator_stats(stats);
+    check_allocator_consistency(stats);
+
 }
