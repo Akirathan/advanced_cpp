@@ -94,11 +94,13 @@ public:
 
     T * allocate(size_t n)
     {
-        if (small_bins.contains_bin_with_chunk_size(n)) {
-            return allocate_in_small_bins(n);
+        size_t bytes_num = byte_count(n);
+
+        if (allocation_fits_in_small_bins(bytes_num)) {
+            return allocate_in_small_bins(bytes_num);
         }
         else {
-            return allocate_in_large_bin(n);
+            return allocate_in_large_bin(bytes_num);
         }
     }
 
@@ -166,9 +168,14 @@ private:
         return last_chunk;
     }
 
-    T * allocate_in_small_bins(size_t n)
+    bool allocation_fits_in_small_bins(size_t bytes_num) const
     {
-        size_t bytes_num = byte_count(n);
+        return SmallBins::min_chunk_size_for_bins <= bytes_num &&
+               bytes_num <= SmallBins::max_chunk_size_for_bins;
+    }
+
+    T * allocate_in_small_bins(size_t bytes_num)
+    {
         chunk_t *chunk_for_allocation = small_bins.allocate_chunk(bytes_num);
         if (!chunk_for_allocation) {
             chunk_t *bigger_chunk = find_chunk_with_size_at_least(bytes_num);
@@ -184,10 +191,8 @@ private:
         return use_chunk(chunk_for_allocation);
     }
 
-    T * allocate_in_large_bin(size_t n)
+    T * allocate_in_large_bin(size_t bytes_num)
     {
-        size_t bytes_num = byte_count(n);
-
         chunk_t *large_chunk = find_chunk_with_size_at_least(bytes_num);
         if (!large_chunk) {
             throw AllocatorException{"Run out of memory"};
@@ -260,7 +265,7 @@ private:
         for (auto chunk_it = chunks.begin() + 1; chunk_it < chunks.end(); chunk_it++) {
             chunk_t *chunk = *chunk_it;
             remove_chunk_from_any_list(chunk);
-            join_chunks(first_chunk, chunk);
+            ::join_chunks(first_chunk, chunk);
         }
         return first_chunk;
     }
@@ -276,7 +281,7 @@ private:
     }
 
     /// May return vector with size 0 if not found.
-    std::vector<chunk_t *> find_free_mem_region_with_size_at_least(size_t minimal_chunks_size) const
+    std::vector<chunk_t *> find_free_mem_region_with_size_at_least(size_t minimal_chunks_size)
     {
         std::vector<chunk_t *> neighbouring_free_chunks;
         size_t neighbouring_free_chunks_size = 0;
