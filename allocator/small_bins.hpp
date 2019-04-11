@@ -202,6 +202,7 @@ private:
     void move_chunk_to_correct_bin(chunk_t *chunk)
     {
         assert(chunk);
+        // If this assertion fails, try to lower min_chunk_size_for_bins member.
         assert(contains_bin_with_chunk_size(chunk->payload_size));
 
         bin_t &bin = get_bin_with_chunk_size(chunk->payload_size);
