@@ -31,7 +31,6 @@ public:
      * @param end_addr
      */
     SmallBins()
-        : redundant_chunk{nullptr}
     {
         initialize_bins();
     }
@@ -132,18 +131,6 @@ public:
                 (payload_size % gap_between_bins == 0);
     }
 
-    bool contains_redundant_chunk() const
-    {
-        return redundant_chunk != nullptr;
-    }
-
-    chunk_t * pop_redundant_chunk()
-    {
-        chunk_t *old_redundant_chunk = redundant_chunk;
-        redundant_chunk = nullptr;
-        return old_redundant_chunk;
-    }
-
     bool try_remove_chunk_from_list(chunk_t *chunk)
     {
         if (contains_bin_with_chunk_size(chunk->payload_size)) {
@@ -162,7 +149,6 @@ private:
         ChunkList chunk_list;
     };
     std::array<bin_t, bin_count> bins;
-    chunk_t *redundant_chunk;
 
 
     void initialize_bins()
@@ -238,14 +224,11 @@ private:
     void move_chunk_to_correct_bin(chunk_t *chunk)
     {
         assert(chunk);
+        // If this assertion fails, try to lower min_chunk_size_for_bins member.
+        assert(contains_bin_with_chunk_size(chunk->payload_size));
 
-        if (contains_bin_with_chunk_size(chunk->payload_size)) {
-            bin_t &bin = get_bin_with_chunk_size(chunk->payload_size);
-            bin.chunk_list.prepend_chunk(chunk);
-        }
-        else {
-            redundant_chunk = chunk;
-        }
+        bin_t &bin = get_bin_with_chunk_size(chunk->payload_size);
+        bin.chunk_list.prepend_chunk(chunk);
     }
 
     bin_t & get_bin_with_chunk_size(size_t chunk_size)
