@@ -87,6 +87,7 @@ public:
     static constexpr size_t type_size = sizeof(T);
 
     inblock_allocator()
+        : stop_traversal{false}
     {
         initialize_memory();
     }
@@ -138,6 +139,7 @@ private:
     intptr_t chunk_region_end_addr;
     SmallBins small_bins;
     LargeBin large_bin;
+    bool stop_traversal;
 
     void initialize_memory()
     {
@@ -287,7 +289,7 @@ private:
         size_t neighbouring_free_chunks_size = 0;
         bool in_free_chunks = false;
         traverse_memory([&neighbouring_free_chunks, &neighbouring_free_chunks_size, &in_free_chunks,
-                                &minimal_chunks_size](chunk_t *chunk) {
+                                &minimal_chunks_size, this](chunk_t *chunk) {
             if (!chunk->used) {
                 if (!in_free_chunks) {
                     in_free_chunks = true;
@@ -300,7 +302,7 @@ private:
                     neighbouring_free_chunks_size += chunk_header_size + chunk->payload_size;
 
                     if (neighbouring_free_chunks_size >= minimal_chunks_size) {
-                        return; // TODO: bude to fungovat?
+                        this->stop_traversal = true;
                     }
                 }
             }
@@ -313,17 +315,20 @@ private:
         return neighbouring_free_chunks;
     }
 
+    // TODO: Implement with iterator
     void traverse_memory(std::function<void(chunk_t *)> func)
     {
         intptr_t start_addr = chunk_region_start_addr;
         intptr_t end_addr = chunk_region_end_addr;
 
         auto *chunk = reinterpret_cast<chunk_t *>(start_addr);
-        while (start_addr != end_addr) {
+        while (start_addr != end_addr && !stop_traversal) {
             start_addr += get_chunk_size(chunk);
             func(chunk);
             chunk = next_chunk_in_mem(chunk);
         }
+
+        stop_traversal = false;
     }
 
     T * use_chunk(chunk_t *chunk)
