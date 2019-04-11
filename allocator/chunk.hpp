@@ -140,6 +140,8 @@ inline void join_chunks(chunk_t *first_chunk, chunk_t *second_chunk)
     // TODO: This is not necessary
     second_chunk->next = nullptr;
     second_chunk->prev = nullptr;
+    second_chunk->used = false;
+    second_chunk->payload_size = 0;
 }
 
 
