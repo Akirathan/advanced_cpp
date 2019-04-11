@@ -70,6 +70,28 @@ static void traverse_all_memory(intptr_t start_addr, intptr_t end_addr, std::fun
     }
 }
 
+static size_t count_used_chunks(intptr_t start_addr, intptr_t end_addr)
+{
+    size_t used_chunks = 0;
+    traverse_all_memory(start_addr, end_addr, [&used_chunks](chunk_t *chunk) {
+        if (chunk->used) {
+            used_chunks++;
+        }
+    });
+    return used_chunks;
+}
+
+static size_t count_free_chunks(intptr_t start_addr, intptr_t end_addr)
+{
+    size_t free_chunks = 0;
+    traverse_all_memory(start_addr, end_addr, [&free_chunks](chunk_t *chunk) {
+        if (!chunk->used) {
+            free_chunks++;
+        }
+    });
+    return free_chunks;
+}
+
 static void check_memory_filled_with_chunks(intptr_t start_addr, intptr_t end_addr)
 {
     traverse_all_memory(start_addr, end_addr, [](chunk_t *chunk) {
@@ -964,4 +986,43 @@ BOOST_AUTO_TEST_CASE(allocator_simple_dealloc_test)
     traverse_all_memory(stats.used_mem_start, stats.used_mem_end, [](chunk_t *chunk) {
         BOOST_TEST(!chunk->used);
     });
+}
+
+BOOST_AUTO_TEST_CASE(allocator_alloc_and_dealloc_random_test)
+{
+    init_heap(20 * 1024);
+    inblock_allocator<uint8_t, holder> allocator;
+    auto stats = get_allocator_stats(allocator);
+
+    const size_t iterations = 300;
+    const size_t max_data_size = 512;
+    BOOST_TEST_MESSAGE("Max data size = " << max_data_size);
+
+    std::vector<std::pair<uint8_t *, size_t>> allocated_data;
+    for (size_t i = 0; i < 300; i++) {
+        if (rand() % 2 == 0) {
+            size_t data_size = (rand() % max_data_size) + 1;
+            uint8_t *data = allocator.allocate(data_size);
+            BOOST_TEST(data);
+            allocated_data.emplace_back(data, data_size);
+        }
+        else {
+            if (allocated_data.empty()) {
+                continue;
+            }
+            size_t data_idx = rand() % allocated_data.size();
+            auto data = allocated_data[data_idx];
+            allocator.deallocate(data.first, data.second);
+
+            allocated_data.erase(allocated_data.begin() + data_idx);
+        }
+
+        size_t used_chunks = count_used_chunks(stats.used_mem_start, stats.used_mem_end);
+        BOOST_TEST(used_chunks == allocated_data.size());
+    }
+
+    BOOST_TEST_MESSAGE("Checking consistency after alloc/dealloc...");
+    stats = get_allocator_stats(allocator);
+    dump_allocator_stats(stats);
+    check_allocator_consistency(stats);
 }
