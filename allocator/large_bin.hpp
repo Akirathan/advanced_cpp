@@ -14,7 +14,7 @@
 class LargeBin {
 public:
     /// Has to be multiple of alignment (8). Also has to be higher than SmallBins::max_chunk_size_for_bins.
-    static constexpr size_t min_chunk_size = 256;
+    static constexpr size_t min_chunk_size = 512;
     /// Has to be multiple of alignment (8).
     static constexpr size_t initial_gap_between_chunks_sizes = 8 * 6;
 

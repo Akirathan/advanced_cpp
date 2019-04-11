@@ -18,7 +18,7 @@ public:
     /// chunk that wont fit into any bin will be created. And there will be no way to
     /// clean it up. In other words: if this number is too high, memory leaks may happen.
     static constexpr size_t min_chunk_size_for_bins = min_payload_size;
-    static constexpr size_t max_chunk_size_for_bins = 256;
+    static constexpr size_t max_chunk_size_for_bins = 512;
     static constexpr size_t bin_count = ((max_chunk_size_for_bins - min_chunk_size_for_bins) / gap_between_bins) + 1;
 
     /**
