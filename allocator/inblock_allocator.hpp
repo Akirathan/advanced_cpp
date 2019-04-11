@@ -95,6 +95,7 @@ public:
     T * allocate(size_t n)
     {
         size_t bytes_num = byte_count(n);
+        bytes_num = align_size_up(bytes_num);
 
         if (allocation_fits_in_small_bins(bytes_num)) {
             return allocate_in_small_bins(bytes_num);

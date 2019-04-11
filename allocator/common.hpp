@@ -8,9 +8,11 @@
 
 constexpr size_t alignment = 8;
 
-constexpr size_t align_size(size_t size, size_t alignment) noexcept
+constexpr size_t align_size_up(size_t size) noexcept
 {
-    size += size % alignment;
+    while (size % alignment != 0) {
+        size++;
+    }
     return size;
 }
 
