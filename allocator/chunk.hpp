@@ -72,6 +72,15 @@ inline size_t get_chunk_size(const chunk_t *chunk)
     return chunk_header_size_with_padding + chunk->payload_size;
 }
 
+inline chunk_t * next_chunk_in_mem(const chunk_t *chunk)
+{
+    assert(chunk != nullptr);
+    auto ptr = reinterpret_cast<intptr_t>(chunk);
+    ptr += chunk_header_size_with_padding;
+    ptr += chunk->payload_size;
+    return reinterpret_cast<chunk_t *>(ptr);
+}
+
 inline bool is_chunk_splittable(const chunk_t *chunk, size_t new_payload_size)
 {
     assert(chunk);
@@ -108,13 +117,24 @@ inline chunk_t * split_chunk(chunk_t *chunk, size_t new_chunk_payload_size)
     return new_chunk;
 }
 
-inline chunk_t * next_chunk_in_mem(const chunk_t *chunk)
+/**
+ * Second chunk should be unlinked from any chunk list, because it will be destroyed.
+ * @param first_chunk
+ * @param second_chunk
+ */
+inline void join_chunks(chunk_t *first_chunk, chunk_t *second_chunk)
 {
-    assert(chunk != nullptr);
-    auto ptr = reinterpret_cast<intptr_t>(chunk);
-    ptr += chunk_header_size_with_padding;
-    ptr += chunk->payload_size;
-    return reinterpret_cast<chunk_t *>(ptr);
+    assert(first_chunk);
+    assert(second_chunk);
+    assert(next_chunk_in_mem(first_chunk) == second_chunk);
+    assert(!first_chunk->used);
+    assert(!second_chunk->used);
+
+    first_chunk->payload_size += get_chunk_size(second_chunk);
+    // TODO: This is not necessary
+    second_chunk->next = nullptr;
+    second_chunk->prev = nullptr;
 }
+
 
 #endif //CHUNK_HPP

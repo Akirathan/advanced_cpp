@@ -137,6 +137,35 @@ private:
     SmallBins small_bins;
     LargeBin large_bin;
 
+    void initialize_memory()
+    {
+        chunk_region_start_addr = heap_start_addr;
+
+        const intptr_t small_bins_start = heap_start_addr;
+        const intptr_t small_bins_end = small_bins_start + std::floor(mem_size_for_small_bins_ratio * heap_size);
+
+        const intptr_t small_bins_real_end = small_bins.initialize_memory(small_bins_start, small_bins_end);
+        const intptr_t large_bin_real_end = large_bin.initialize_memory(small_bins_real_end, heap_end_addr);
+
+        chunk_t *last_chunk = initialize_last_chunk_in_mem(large_bin_real_end);
+        if (last_chunk) {
+            chunk_region_end_addr = heap_end_addr;
+        }
+        else {
+            chunk_region_end_addr = large_bin_real_end;
+        }
+        large_bin.store_chunk(last_chunk);
+    }
+
+    chunk_t * initialize_last_chunk_in_mem(intptr_t chunk_start_addr)
+    {
+        chunk_t *last_chunk = nullptr;
+        if (contains_enough_space_for_chunk(chunk_start_addr, heap_end_addr)) {
+            last_chunk = initialize_chunk_in_region(chunk_start_addr, heap_end_addr);
+        }
+        return last_chunk;
+    }
+
     T * allocate_in_small_bins(size_t n)
     {
         size_t bytes_num = byte_count(n);
@@ -205,35 +234,6 @@ private:
         return chunk;
     }
 
-    void initialize_memory()
-    {
-        chunk_region_start_addr = heap_start_addr;
-
-        const intptr_t small_bins_start = heap_start_addr;
-        const intptr_t small_bins_end = small_bins_start + std::floor(mem_size_for_small_bins_ratio * heap_size);
-
-        const intptr_t small_bins_real_end = small_bins.initialize_memory(small_bins_start, small_bins_end);
-        const intptr_t large_bin_real_end = large_bin.initialize_memory(small_bins_real_end, heap_end_addr);
-
-        chunk_t *last_chunk = initialize_last_chunk_in_mem(large_bin_real_end);
-        if (last_chunk) {
-            chunk_region_end_addr = heap_end_addr;
-        }
-        else {
-            chunk_region_end_addr = large_bin_real_end;
-        }
-        large_bin.store_chunk(last_chunk);
-    }
-
-    chunk_t * initialize_last_chunk_in_mem(intptr_t chunk_start_addr)
-    {
-        chunk_t *last_chunk = nullptr;
-        if (contains_enough_space_for_chunk(chunk_start_addr, heap_end_addr)) {
-            last_chunk = initialize_chunk_in_region(chunk_start_addr, heap_end_addr);
-        }
-        return last_chunk;
-    }
-
     /**
      * Traverse the whole memory and searches for neighbouring free chunks which are
      * merged together. These free chunks are removed from any lists.
@@ -244,8 +244,71 @@ private:
      */
     chunk_t * consolidate_chunk_with_size_at_least(size_t payload_size)
     {
-        // TODO
-        return nullptr;
+        auto free_chunks = find_free_mem_region_with_size_at_least(payload_size);
+        if (free_chunks.empty()) {
+            return nullptr;
+        }
+        chunk_t *large_chunk = join_chunks(free_chunks);
+        assert(large_chunk->payload_size >= payload_size);
+        return large_chunk;
+    }
+
+    chunk_t * join_chunks(const std::vector<chunk_t *> &chunks) const
+    {
+        chunk_t *first_chunk = chunks[0];
+        ChunkList::unlink_chunk_from_list(first_chunk);
+        for (auto chunk_it = chunks.begin() + 1; chunk_it < chunks.end(); chunk_it++) {
+            chunk_t *chunk = *chunk_it;
+            ChunkList::unlink_chunk_from_list(chunk);
+            join_chunks(first_chunk, chunk);
+        }
+        return first_chunk;
+    }
+
+    /// May return vector with size 0 if not found.
+    std::vector<chunk_t *> find_free_mem_region_with_size_at_least(size_t minimal_chunks_size) const
+    {
+        std::vector<chunk_t *> neighbouring_free_chunks;
+        size_t neighbouring_free_chunks_size = 0;
+        bool in_free_chunks = false;
+        traverse_memory([&neighbouring_free_chunks, &neighbouring_free_chunks_size, &in_free_chunks,
+                                &minimal_chunks_size](chunk_t *chunk) {
+            if (!chunk->used) {
+                if (!in_free_chunks) {
+                    in_free_chunks = true;
+                    neighbouring_free_chunks.clear();
+                    neighbouring_free_chunks.push_back(chunk);
+                    neighbouring_free_chunks_size = chunk->payload_size;
+                }
+                else if (in_free_chunks) {
+                    neighbouring_free_chunks.push_back(chunk);
+                    neighbouring_free_chunks_size += chunk_header_size + chunk->payload_size;
+
+                    if (neighbouring_free_chunks_size >= minimal_chunks_size) {
+                        return; // TODO: bude to fungovat?
+                    }
+                }
+            }
+            else if (chunk->used) {
+                in_free_chunks = false;
+                neighbouring_free_chunks.clear();
+                neighbouring_free_chunks_size = 0;
+            }
+        });
+        return neighbouring_free_chunks;
+    }
+
+    void traverse_memory(std::function<void(chunk_t *)> func)
+    {
+        intptr_t start_addr = chunk_region_start_addr;
+        intptr_t end_addr = chunk_region_end_addr;
+
+        auto *chunk = reinterpret_cast<chunk_t *>(start_addr);
+        while (start_addr != end_addr) {
+            start_addr += get_chunk_size(chunk);
+            func(chunk);
+            chunk = next_chunk_in_mem(chunk);
+        }
     }
 
     T * use_chunk(chunk_t *chunk)

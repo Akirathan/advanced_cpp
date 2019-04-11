@@ -207,11 +207,26 @@ public:
      */
     static void link_chunks(chunk_t *first_chunk, chunk_t *second_chunk)
     {
-        assert(first_chunk != nullptr);
-        assert(second_chunk != nullptr);
+        assert(first_chunk);
+        assert(second_chunk);
 
         first_chunk->next = second_chunk;
         second_chunk->prev = first_chunk;
+    }
+
+    static void unlink_chunk_from_list(chunk_t *chunk)
+    {
+        assert(chunk);
+
+        if (chunk->prev && chunk->next && !links_to_self(chunk)) {
+            chunk_t *prev = chunk->prev;
+            chunk_t *next = chunk->next;
+            prev->next = next;
+            next->prev = prev;
+        }
+
+        chunk->prev = nullptr;
+        chunk->next = nullptr;
     }
 
     /// Makes cyclic links
@@ -252,19 +267,24 @@ private:
         return chunk->prev == chunk && chunk->next == chunk;
     }
 
-    bool has_next(const chunk_t *chunk) const
+    static bool has_next(const chunk_t *chunk)
     {
         return chunk->next;
     }
 
-    bool has_prev(const chunk_t *chunk) const
+    static bool has_prev(const chunk_t *chunk)
     {
         return chunk->prev;
     }
 
-    bool has_no_links(const chunk_t *chunk) const
+    static bool has_no_links(const chunk_t *chunk)
     {
         return chunk->next == nullptr && chunk->prev == nullptr;
+    }
+
+    static bool has_links(const chunk_t *chunk)
+    {
+        return chunk->next && chunk->prev;
     }
 
 };
