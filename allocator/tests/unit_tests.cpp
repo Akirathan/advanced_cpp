@@ -1012,3 +1012,28 @@ BOOST_AUTO_TEST_CASE(allocator_alloc_and_dealloc_random_test)
     dump_allocator_stats(stats);
     check_allocator_consistency(stats);
 }
+
+template<typename V>
+using Vector = std::vector<V, inblock_allocator<V, holder>>;
+
+BOOST_AUTO_TEST_CASE(allocator_in_std_container_mem_init_test)
+{
+    std::vector<uint8_t> mem;
+    mem.resize(2500000);
+
+    holder::heap(mem.data(), 2500000);
+    Vector<int> v;
+
+    auto stats = get_allocator_stats(v.get_allocator());
+    dump_allocator_stats(stats);
+    check_allocator_stats(stats);
+    check_allocator_consistency(stats);
+
+    // Make small allocation
+    v.push_back(42);
+
+    BOOST_TEST_MESSAGE("Stats after small alloc:");
+    stats = get_allocator_stats(v.get_allocator());
+    dump_allocator_stats(stats);
+    check_allocator_consistency(stats);
+}
