@@ -92,6 +92,16 @@ public:
         initialize_memory();
     }
 
+    bool operator==(const inblock_allocator &) const
+    {
+        return false;
+    }
+
+    bool operator!=(const inblock_allocator &rhs) const
+    {
+        return !(this == rhs);
+    }
+
     T * allocate(size_t n)
     {
         size_t bytes_num = byte_count(n);
