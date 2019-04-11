@@ -439,6 +439,20 @@ BOOST_AUTO_TEST_CASE(chunk_more_splits_test)
     }
 }
 
+BOOST_AUTO_TEST_CASE(chunk_join_test)
+{
+    const size_t mem_size = 1024;
+    auto [start_addr, end_addr] = get_aligned_memory_region(mem_size);
+    chunk_t *first_chunk = nullptr;
+    chunk_t *second_chunk = nullptr;
+
+    first_chunk = initialize_chunk(start_addr, min_payload_size);
+    second_chunk = initialize_chunk(start_addr + get_chunk_size(first_chunk), min_payload_size);
+
+    join_chunks(first_chunk, second_chunk);
+    BOOST_TEST(first_chunk->payload_size > min_payload_size);
+}
+
 /* ===================================================================================================== */
 /* ============================== HEAP TESTS ===================================================== */
 /* ===================================================================================================== */
