@@ -946,3 +946,22 @@ BOOST_AUTO_TEST_CASE(allocator_random_peek_alloc_test)
     dump_allocator_stats(stats);
     check_allocator_consistency(stats);
 }
+
+BOOST_AUTO_TEST_CASE(allocator_simple_dealloc_test)
+{
+    init_heap(2 * 1024);
+    inblock_allocator<uint8_t, holder> allocator;
+    auto stats = get_allocator_stats(allocator);
+
+    size_t data_size = 48;
+    uint8_t *data = allocator.allocate(data_size);
+    allocator.deallocate(data, data_size);
+
+    BOOST_TEST_MESSAGE("Stats after deallocation:");
+    stats = get_allocator_stats(allocator);
+    dump_allocator_stats(stats);
+
+    traverse_all_memory(stats.used_mem_start, stats.used_mem_end, [](chunk_t *chunk) {
+        BOOST_TEST(!chunk->used);
+    });
+}

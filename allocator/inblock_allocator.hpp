@@ -105,6 +105,17 @@ public:
         }
     }
 
+    void deallocate(T *ptr, size_t n) noexcept
+    {
+        (void) n;
+
+        chunk_t *freed_chunk = get_chunk_from_payload_addr(reinterpret_cast<intptr_t>(ptr));
+        freed_chunk->used = false;
+        freed_chunk->prev = nullptr;
+        freed_chunk->next = nullptr;
+        large_bin.store_chunk(freed_chunk);
+    }
+
     intptr_t get_chunk_region_start_addr() const
     {
         return chunk_region_start_addr;

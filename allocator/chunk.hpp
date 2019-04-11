@@ -65,6 +65,12 @@ inline void * get_chunk_data(const chunk_t *chunk)
     return reinterpret_cast<void *>(ptr);
 }
 
+inline chunk_t * get_chunk_from_payload_addr(intptr_t payload_addr)
+{
+    payload_addr -= chunk_header_size;
+    return reinterpret_cast<chunk_t *>(payload_addr);
+}
+
 /// Gets total size of the chunk - not just size of its payload.
 inline size_t get_chunk_size(const chunk_t *chunk)
 {
