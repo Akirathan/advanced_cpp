@@ -749,14 +749,87 @@ BOOST_AUTO_TEST_CASE(allocator_initialize_memory_test)
     check_memory_filled_with_chunks(stats.used_mem_start, stats.used_mem_end);
 }
 
-BOOST_AUTO_TEST_CASE(allocator_normal_alloc_test)
+BOOST_AUTO_TEST_CASE(allocator_allocated_data_are_aligned_test)
 {
     init_heap(10 * 1024);
-    inblock_allocator<int, holder> allocator;
+    inblock_allocator<uint8_t, holder> allocator;
 
     auto stats = get_allocator_stats(allocator);
     dump_allocator_stats(stats);
     check_allocator_stats(stats);
     check_allocator_consistency(stats);
 
+    for (size_t payload_size = 23; payload_size < 80; payload_size += 5) {
+        uint8_t *data = allocator.allocate(payload_size);
+        BOOST_TEST(data);
+        BOOST_TEST(is_aligned((intptr_t)data));
+    }
+}
+
+BOOST_AUTO_TEST_CASE(allocator_consistency_after_small_allocs_test)
+{
+    init_heap(10 * 1024);
+    inblock_allocator<uint8_t, holder> allocator;
+
+    auto stats = get_allocator_stats(allocator);
+    dump_allocator_stats(stats);
+    check_allocator_stats(stats);
+    check_allocator_consistency(stats);
+
+    for (size_t payload_size = 23; payload_size < 80; payload_size += 5) {
+        uint8_t *data = allocator.allocate(payload_size);
+        BOOST_TEST(data);
+    }
+    BOOST_TEST_MESSAGE("Checking allocator consistency after some small allocs");
+    stats = get_allocator_stats(allocator);
+    dump_allocator_stats(stats);
+    check_allocator_consistency(stats);
+}
+
+BOOST_AUTO_TEST_CASE(allocator_two_phase_small_allocs_consistency_test)
+{
+    init_heap(10 * 1024);
+    inblock_allocator<uint8_t, holder> allocator;
+
+    auto stats = get_allocator_stats(allocator);
+    dump_allocator_stats(stats);
+    check_allocator_stats(stats);
+    check_allocator_consistency(stats);
+
+    BOOST_TEST_MESSAGE("Starting first phase of allocations...");
+    std::vector<std::pair<uint8_t *, size_t>> first_phase_allocated_data;
+    for (size_t payload_size = 23; payload_size < 80; payload_size += 5) {
+        uint8_t *data = allocator.allocate(payload_size);
+        BOOST_TEST(data);
+        first_phase_allocated_data.emplace_back(data, payload_size);
+        fill_payload(data, payload_size);
+    }
+    BOOST_TEST_MESSAGE("Allocator stats after first phase:");
+    stats = get_allocator_stats(allocator);
+    dump_allocator_stats(stats);
+    check_allocator_consistency(stats);
+
+    BOOST_TEST_MESSAGE("Starting second phase of allocations...");
+    std::vector<std::pair<uint8_t *, size_t>> second_phase_allocated_data;
+    for (size_t payload_size = 60; payload_size < 150; payload_size += 5) {
+        uint8_t *data = allocator.allocate(payload_size);
+        BOOST_TEST(data);
+        second_phase_allocated_data.emplace_back(data, payload_size);
+        fill_payload(data, payload_size);
+    }
+    BOOST_TEST_MESSAGE("Allocator stats after second phase:");
+    stats = get_allocator_stats(allocator);
+    dump_allocator_stats(stats);
+    check_allocator_consistency(stats);
+
+
+    BOOST_TEST_MESSAGE("Checking consistency of first phase data...");
+    for (auto &&data : first_phase_allocated_data) {
+        BOOST_TEST(check_payload_consistency(data.first, data.second));
+    }
+
+    BOOST_TEST_MESSAGE("Checking consistency of second phase data...");
+    for (auto &&data : second_phase_allocated_data) {
+        BOOST_TEST(check_payload_consistency(data.first, data.second));
+    }
 }
