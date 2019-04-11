@@ -206,8 +206,16 @@ private:
             }
 
             chunk_for_allocation = try_split_and_put_residue_in_large_bin(bigger_chunk, bytes_num);
-
             refill_small_bins();
+        }
+        else {
+            // During allocation in small bins, redundant chunk may be created.
+            if (small_bins.contains_redundant_chunk()) {
+                chunk_t *redundant_chunk = small_bins.pop_redundant_chunk();
+                redundant_chunk->prev = nullptr;
+                redundant_chunk->next = nullptr;
+                large_bin.store_chunk(redundant_chunk);
+            }
         }
 
         return use_chunk(chunk_for_allocation);
