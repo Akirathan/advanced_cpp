@@ -586,11 +586,20 @@ BOOST_AUTO_TEST_CASE(small_bins_simple_allocation_test)
     SmallBins small_bins = initialize_small_bins(80, nullptr, nullptr);
 
     size_t chunk_payload_size = SmallBins::min_chunk_size_for_bins;
-    BOOST_TEST(small_bins.contains_bin_with_chunk_size(chunk_payload_size));
     chunk_t *allocated_chunk = small_bins.allocate_chunk(chunk_payload_size);
     BOOST_TEST(allocated_chunk);
-    BOOST_TEST(allocated_chunk->payload_size == chunk_payload_size);
+    BOOST_TEST(allocated_chunk->payload_size >= chunk_payload_size);
     BOOST_TEST(is_chunk_in_initialized_state(allocated_chunk));
+}
+
+BOOST_AUTO_TEST_CASE(small_bins_very_small_allocation_test)
+{
+    SmallBins small_bins = initialize_small_bins(80, nullptr, nullptr);
+
+    chunk_t *allocated_chunk = small_bins.allocate_chunk(4);
+    BOOST_TEST(allocated_chunk);
+    BOOST_TEST(is_payload_aligned(allocated_chunk));
+    BOOST_TEST(allocated_chunk->payload_size >= 4);
 }
 
 BOOST_AUTO_TEST_CASE(small_bins_allocation_failed_test)

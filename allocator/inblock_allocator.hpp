@@ -183,8 +183,7 @@ private:
 
     bool allocation_fits_in_small_bins(size_t bytes_num) const
     {
-        return SmallBins::min_chunk_size_for_bins <= bytes_num &&
-               bytes_num <= SmallBins::max_chunk_size_for_bins;
+        return bytes_num <= SmallBins::max_chunk_size_for_bins;
     }
 
     T * allocate_in_small_bins(size_t bytes_num)
