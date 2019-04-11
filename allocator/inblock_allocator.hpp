@@ -340,6 +340,11 @@ private:
                 neighbouring_free_chunks_size = 0;
             }
         });
+
+        if (neighbouring_free_chunks_size < minimal_chunks_size) {
+            neighbouring_free_chunks.clear();
+        }
+
         return neighbouring_free_chunks;
     }
 
