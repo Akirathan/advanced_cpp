@@ -10,7 +10,6 @@
 #include "allocator_exception.hpp"
 #include "small_bins.hpp"
 #include "large_bin.hpp"
-#include "unsorted_bin.hpp"
 #include "chunk_list.hpp"
 #include "common.hpp"
 #include "chunk.hpp"

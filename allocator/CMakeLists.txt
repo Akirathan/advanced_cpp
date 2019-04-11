@@ -11,7 +11,6 @@ set(SOURCES
         chunk_list.hpp
         small_bins.hpp
         large_bin.hpp
-        unsorted_bin.hpp
         inblock_allocator.hpp
         inblock_allocator.cpp
         )
