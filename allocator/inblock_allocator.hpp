@@ -147,13 +147,7 @@ private:
                 throw AllocatorException{"Run out of memory"};
             }
 
-            if (is_chunk_splittable(bigger_chunk, bytes_num)) {
-                chunk_for_allocation = split_chunk(bigger_chunk, bytes_num);
-                large_bin.store_chunk(bigger_chunk);
-            }
-            else {
-                chunk_for_allocation = bigger_chunk;
-            }
+            chunk_for_allocation = try_split_and_put_residue_in_large_bin(bigger_chunk, bytes_num);
 
             refill_small_bins();
         }
@@ -161,9 +155,31 @@ private:
         return use_chunk(chunk_for_allocation);
     }
 
+    T * allocate_in_large_bin(size_t n)
+    {
+        size_t bytes_num = byte_count(n);
+
+        chunk_t *large_chunk = find_chunk_with_size_at_least(bytes_num);
+        if (!large_chunk) {
+            throw AllocatorException{"Run out of memory"};
+        }
+
+        chunk_t *desired_chunk = try_split_and_put_residue_in_large_bin(large_chunk, bytes_num);
+        return use_chunk(desired_chunk);
+    }
+
+    chunk_t * try_split_and_put_residue_in_large_bin(chunk_t *chunk, size_t desired_payload_size)
+    {
+        chunk_t *new_chunk = chunk;
+        if (is_chunk_splittable(chunk, desired_payload_size)) {
+            new_chunk = split_chunk(chunk, desired_payload_size);
+            large_bin.store_chunk(chunk);
+        }
+        return new_chunk;
+    }
+
     void refill_small_bins()
     {
-        //TODO: Perhaps some smarter algorithm?
         chunk_t *some_chunk = large_bin.pop_first_chunk();
         if (!some_chunk) {
             return;
@@ -172,11 +188,6 @@ private:
         chunk_t *redundant_chunk = small_bins.add_chunk(some_chunk);
         assert(redundant_chunk);
         large_bin.store_chunk(redundant_chunk);
-    }
-
-    T * allocate_in_large_bin(size_t n)
-    {
-
     }
 
     /// May return nullptr if there is no chunk with size at least payload_size.

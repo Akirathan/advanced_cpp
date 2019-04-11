@@ -63,17 +63,7 @@ public:
      */
     chunk_t * pop_chunk_with_size_at_least(size_t payload_size)
     {
-        chunk_t *large_chunk = large_chunk_list.pop_chunk_with_size_at_least(payload_size);
-        if (!large_chunk) {
-            return nullptr;
-        }
-
-        chunk_t *chunk_to_return = large_chunk;
-        if (is_chunk_splittable(large_chunk, payload_size)) {
-            chunk_to_return = split_chunk(large_chunk, payload_size);
-        }
-
-        return chunk_to_return;
+        return large_chunk_list.pop_chunk_with_size_at_least(payload_size);
     }
 
 private:

@@ -154,7 +154,7 @@ private:
     chunk_t * allocate_in_bin_with_higher_chunk_size(size_t payload_size)
     {
         chunk_t *new_chunk = nullptr;
-        chunk_t *bigger_free_chunk = find_smallest_free_chunk(payload_size);
+        chunk_t *bigger_free_chunk = find_and_pop_smallest_free_chunk(payload_size);
         if (bigger_free_chunk) {
             if (is_chunk_splittable(bigger_free_chunk, payload_size)) {
                 new_chunk = split_chunk(bigger_free_chunk, payload_size);
@@ -200,7 +200,7 @@ private:
 
     /// Finds first free chunk with size greater than payload_size parameter.
     /// If there is no such chunk, nullptr is returned.
-    chunk_t * find_smallest_free_chunk(size_t payload_size)
+    chunk_t * find_and_pop_smallest_free_chunk(size_t payload_size)
     {
         for (bin_t &bin : bins) {
             if (bin.chunk_sizes > payload_size) {
