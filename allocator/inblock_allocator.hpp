@@ -97,9 +97,9 @@ public:
         return false;
     }
 
-    bool operator!=(const inblock_allocator &rhs) const
+    bool operator!=(const inblock_allocator &) const
     {
-        return !(this == rhs);
+        return true;
     }
 
     T * allocate(size_t n)
