@@ -253,16 +253,26 @@ private:
         return large_chunk;
     }
 
-    chunk_t * join_chunks(const std::vector<chunk_t *> &chunks) const
+    chunk_t * join_chunks(const std::vector<chunk_t *> &chunks)
     {
         chunk_t *first_chunk = chunks[0];
-        ChunkList::unlink_chunk_from_list(first_chunk);
+        remove_chunk_from_any_list(first_chunk);
         for (auto chunk_it = chunks.begin() + 1; chunk_it < chunks.end(); chunk_it++) {
             chunk_t *chunk = *chunk_it;
-            ChunkList::unlink_chunk_from_list(chunk);
+            remove_chunk_from_any_list(chunk);
             join_chunks(first_chunk, chunk);
         }
         return first_chunk;
+    }
+
+    void remove_chunk_from_any_list(chunk_t *chunk)
+    {
+        if (small_bins.try_remove_chunk_from_list(chunk)) {
+            return;
+        }
+
+        // If chunk was not in small_bins, it has to be in large bin.
+        assert(large_bin.try_remove_chunk_from_list(chunk));
     }
 
     /// May return vector with size 0 if not found.

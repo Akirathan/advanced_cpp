@@ -337,6 +337,44 @@ BOOST_AUTO_TEST_CASE(chunk_list_remove_more_chunks_test)
     BOOST_TEST(chunk_list.is_empty());
 }
 
+BOOST_AUTO_TEST_CASE(chunk_list_remove_first_chunk_test)
+{
+    auto first_chunk = std::make_unique<chunk_t>();
+    auto second_chunk = std::make_unique<chunk_t>();
+
+    ChunkList chunk_list{first_chunk.get()};
+    chunk_list.append_chunk(second_chunk.get());
+    BOOST_TEST(chunk_list.size() == 2);
+
+    chunk_list.remove_chunk(first_chunk.get());
+    BOOST_TEST(chunk_list.size() == 1);
+}
+
+BOOST_AUTO_TEST_CASE(chunk_list_try_remove_test)
+{
+    size_t chunk_count = 15;
+    auto chunk_vector = create_chunks(chunk_count);
+
+    ChunkList chunk_list;
+    for (auto &chunk_ptr : chunk_vector) {
+        chunk_list.prepend_chunk(chunk_ptr.get());
+    }
+    BOOST_TEST(chunk_list.size() == chunk_count);
+
+    chunk_t *first_chunk = chunk_list.get_first_chunk();
+    BOOST_TEST(chunk_list.try_remove_chunk(first_chunk));
+    BOOST_TEST(chunk_list.size() == chunk_count - 1);
+    chunk_t *new_first_chunk = chunk_list.get_first_chunk();
+    BOOST_TEST(first_chunk != new_first_chunk);
+
+    chunk_t *chunk_in_middle = new_first_chunk->next->next->next;
+    BOOST_TEST(chunk_list.try_remove_chunk(chunk_in_middle));
+    BOOST_TEST(chunk_list.size() == chunk_count - 2);
+
+    auto completely_different_chunk = std::make_unique<chunk_t>();
+    BOOST_TEST(!chunk_list.try_remove_chunk(completely_different_chunk.get()));
+}
+
 BOOST_AUTO_TEST_CASE(chunk_list_pop_chunk_with_size_at_least_test)
 {
     std::vector<std::unique_ptr<chunk_t>> chunk_vector;
@@ -619,7 +657,7 @@ allocator_stats_t get_allocator_stats(const inblock_allocator<T, HeapHolder> &al
     const ChunkList &large_bin_chunk_list = allocator.get_large_bin().get_chunk_list();
     stats.large_bin_chunk_count = large_bin_chunk_list.size();
     stats.large_bin_total_chunk_size = 0;
-    large_bin_chunk_list.traverse([&](const chunk_t *chunk) {
+    const_cast<ChunkList &>(large_bin_chunk_list).traverse([&](const chunk_t *chunk) {
         stats.large_bin_total_chunk_size += chunk->payload_size;
     });
 

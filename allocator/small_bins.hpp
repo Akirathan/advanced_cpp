@@ -135,6 +135,16 @@ public:
         return false;
     }
 
+    bool try_remove_chunk_from_list(chunk_t *chunk)
+    {
+        for (bin_t &bin : bins) {
+            if (bin.chunk_list.try_remove_chunk(chunk)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
 private:
     struct bin_t {
         size_t chunk_sizes;

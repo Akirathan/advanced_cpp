@@ -66,6 +66,11 @@ public:
         return large_chunk_list.pop_chunk_with_size_at_least(payload_size);
     }
 
+    bool try_remove_chunk_from_list(chunk_t *chunk)
+    {
+        return large_chunk_list.try_remove_chunk(chunk);
+    }
+
 private:
     ChunkList large_chunk_list;
 };

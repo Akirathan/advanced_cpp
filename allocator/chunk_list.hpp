@@ -132,10 +132,11 @@ public:
                 chunk = chunk->next;
             }
         }
+        return nullptr;
     }
 
     // TODO: Replace with iterator.
-    void traverse(std::function<void(const chunk_t *)> func) const
+    void traverse(std::function<void(chunk_t *)> func)
     {
         if (is_empty()) {
             return;
@@ -195,8 +196,31 @@ public:
             link_chunks(prev, next);
         }
 
-        if (first_chunk == chunk) {
-            first_chunk = nullptr;
+        if (chunk == first_chunk) {
+            if (prev && next) {
+                first_chunk = next;
+            }
+            else {
+                first_chunk = nullptr;
+            }
+        }
+    }
+
+    bool try_remove_chunk(chunk_t *chunk_to_remove)
+    {
+        bool found = false;
+        traverse([&found, &chunk_to_remove](chunk_t *chunk) {
+            if (chunk == chunk_to_remove) {
+                found = true;
+            }
+        });
+
+        if (found) {
+            remove_chunk(chunk_to_remove);
+            return true;
+        }
+        else {
+            return false;
         }
     }
 
@@ -212,21 +236,6 @@ public:
 
         first_chunk->next = second_chunk;
         second_chunk->prev = first_chunk;
-    }
-
-    static void unlink_chunk_from_list(chunk_t *chunk)
-    {
-        assert(chunk);
-
-        if (chunk->prev && chunk->next && !links_to_self(chunk)) {
-            chunk_t *prev = chunk->prev;
-            chunk_t *next = chunk->next;
-            prev->next = next;
-            next->prev = prev;
-        }
-
-        chunk->prev = nullptr;
-        chunk->next = nullptr;
     }
 
     /// Makes cyclic links
