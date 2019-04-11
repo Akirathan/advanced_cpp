@@ -920,3 +920,29 @@ BOOST_AUTO_TEST_CASE(allocator_small_allocs_after_big_alloc_test)
     dump_allocator_stats(stats);
     check_allocator_consistency(stats);
 }
+
+BOOST_AUTO_TEST_CASE(allocator_random_peek_alloc_test)
+{
+    const size_t heap_size = 10 * 1024;
+    const double peek = 0.7;
+    const size_t peek_heap_size = (size_t)((double)heap_size * peek);
+    const size_t max_data_size = 2 * 1024;
+    int remaining_mem = peek_heap_size;
+
+    init_heap(heap_size);
+    inblock_allocator<uint8_t, holder> allocator;
+    BOOST_TEST_MESSAGE("Total memory size = " << heap_size);
+    BOOST_TEST_MESSAGE("Peek memory size = " << peek_heap_size);
+
+    while (remaining_mem > 0) {
+        size_t data_size = rand() % max_data_size;
+        uint8_t *data = allocator.allocate(data_size);
+        BOOST_TEST(data);
+        remaining_mem -= data_size;
+    }
+
+    BOOST_TEST_MESSAGE("Checking consistency after peek allocations...");
+    auto stats = get_allocator_stats(allocator);
+    dump_allocator_stats(stats);
+    check_allocator_consistency(stats);
+}
