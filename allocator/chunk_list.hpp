@@ -122,15 +122,22 @@ public:
             }
         }
         else {
-            chunk_t *chunk = first_chunk->next;
-
-            while (chunk != first_chunk) {
-                if (chunk->payload_size >= payload_size) {
-                    remove_chunk(chunk);
-                    return chunk;
+            chunk_t *bigger_chunk = nullptr;
+            bool found = false;
+            traverse([&](chunk_t *chunk) {
+                if (found) {
+                    return;
                 }
-                chunk = chunk->next;
+                if (chunk->payload_size >= payload_size) {
+                    bigger_chunk = chunk;
+                    found = true;
+                }
+            });
+
+            if (found) {
+                remove_chunk(bigger_chunk);
             }
+            return bigger_chunk;
         }
         return nullptr;
     }
