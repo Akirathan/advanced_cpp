@@ -83,7 +83,7 @@ static double count_chunk_headers_overhead(intptr_t start_addr, intptr_t end_add
     size_t total_memory = diff(start_addr, end_addr);
 
     size_t chunk_headers_size_sum = 0;
-    traverse_all_memory(start_addr, end_addr, [&](chunk_t *chunk) {
+    traverse_all_memory(start_addr, end_addr, [&](chunk_t *) {
         chunk_headers_size_sum += chunk_header_size;
     });
 
