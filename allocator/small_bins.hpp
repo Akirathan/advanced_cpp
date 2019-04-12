@@ -127,12 +127,9 @@ public:
     /// Returns bool whether given size fits in some small bin.
     bool contains_bin_with_chunk_size(size_t payload_size) const
     {
-        for (auto &&bin : bins) {
-            if (bin.chunk_sizes == payload_size) {
-                return true;
-            }
-        }
-        return false;
+        return min_chunk_size_for_bins <= payload_size &&
+                payload_size <= max_chunk_size_for_bins &&
+                (payload_size % gap_between_bins == 0);
     }
 
     bool contains_redundant_chunk() const
@@ -149,12 +146,14 @@ public:
 
     bool try_remove_chunk_from_list(chunk_t *chunk)
     {
-        for (bin_t &bin : bins) {
-            if (bin.chunk_list.try_remove_chunk(chunk)) {
-                return true;
-            }
+        if (contains_bin_with_chunk_size(chunk->payload_size)) {
+            bin_t &bin = get_bin_with_chunk_size(chunk->payload_size);
+            bin.chunk_list.remove_chunk(chunk);
+            return true;
         }
-        return false;
+        else {
+            return false;
+        }
     }
 
 private:
