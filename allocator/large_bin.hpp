@@ -14,7 +14,7 @@
 class LargeBin {
 public:
     /// Has to be multiple of alignment (8). Also has to be higher than SmallBins::max_chunk_size_for_bins.
-    static constexpr size_t min_chunk_size = 512;
+    static constexpr size_t min_chunk_size = 520;
     /// Has to be multiple of alignment (8).
     static constexpr size_t initial_gap_between_chunks_sizes = 8 * 6;
 
@@ -46,6 +46,7 @@ public:
     void store_chunk(chunk_t *chunk)
     {
         assert(chunk);
+        assert(chunk->payload_size >= min_chunk_size);
 
         large_chunk_list.append_chunk(chunk);
     }

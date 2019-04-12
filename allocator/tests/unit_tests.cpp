@@ -397,6 +397,17 @@ BOOST_AUTO_TEST_CASE(chunk_list_try_remove_test)
     BOOST_TEST(!chunk_list.try_remove_chunk(completely_different_chunk.get()));
 }
 
+BOOST_AUTO_TEST_CASE(chunk_list_find_and_remove_test)
+{
+    auto chunk = std::make_unique<chunk_t>();
+    ChunkList chunk_list{chunk.get()};
+    chunk_t *free_chunk = chunk_list.find_free_chunk();
+    BOOST_TEST(free_chunk);
+    chunk_list.remove_chunk(free_chunk);
+
+    BOOST_TEST(chunk_list.is_empty());
+}
+
 BOOST_AUTO_TEST_CASE(chunk_list_pop_chunk_with_size_at_least_simple_test)
 {
     auto chunk = std::make_unique<chunk_t>();
@@ -979,6 +990,9 @@ BOOST_AUTO_TEST_CASE(allocator_alloc_and_dealloc_random_test)
     init_heap(20 * 1024);
     inblock_allocator<uint8_t, holder> allocator;
     auto stats = get_allocator_stats(allocator);
+    dump_allocator_stats(stats);
+
+    BOOST_TEST(count_used_chunks(stats.used_mem_start, stats.used_mem_end) == 0);
 
     const size_t iterations = 300;
     const size_t max_data_size = 512;

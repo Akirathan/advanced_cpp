@@ -120,10 +120,12 @@ public:
         (void) n;
 
         chunk_t *freed_chunk = get_chunk_from_payload_addr(reinterpret_cast<intptr_t>(ptr));
+
         freed_chunk->used = false;
         freed_chunk->prev = nullptr;
         freed_chunk->next = nullptr;
-        large_bin.store_chunk(freed_chunk);
+
+        put_chunk_in_correct_bin(freed_chunk);
     }
 
     intptr_t get_chunk_region_start_addr() const
@@ -179,7 +181,7 @@ private:
         else {
             chunk_region_end_addr = large_bin_real_end;
         }
-        large_bin.store_chunk(last_chunk);
+        put_chunk_in_correct_bin(last_chunk);
     }
 
     chunk_t * initialize_last_chunk_in_mem(intptr_t chunk_start_addr)
@@ -205,7 +207,7 @@ private:
                 throw AllocatorException{"Run out of memory"};
             }
 
-            chunk_for_allocation = try_split_and_put_residue_in_large_bin(bigger_chunk, bytes_num);
+            chunk_for_allocation = try_split_and_deal_with_residue(bigger_chunk, bytes_num);
 
             refill_small_bins();
         }
@@ -220,18 +222,30 @@ private:
             throw AllocatorException{"Run out of memory"};
         }
 
-        chunk_t *desired_chunk = try_split_and_put_residue_in_large_bin(large_chunk, bytes_num);
+        chunk_t *desired_chunk = try_split_and_deal_with_residue(large_chunk, bytes_num);
         return use_chunk(desired_chunk);
     }
 
-    chunk_t * try_split_and_put_residue_in_large_bin(chunk_t *chunk, size_t desired_payload_size)
+    chunk_t * try_split_and_deal_with_residue(chunk_t *chunk, size_t desired_payload_size)
     {
         chunk_t *new_chunk = chunk;
         if (is_chunk_splittable(chunk, desired_payload_size)) {
             new_chunk = split_chunk(chunk, desired_payload_size);
-            large_bin.store_chunk(chunk);
+            put_chunk_in_correct_bin(new_chunk);
         }
         return new_chunk;
+    }
+
+    void put_chunk_in_correct_bin(chunk_t *chunk)
+    {
+        assert(chunk);
+
+        if (chunk->payload_size <= SmallBins::max_chunk_size_for_bins) {
+            small_bins.add_chunk(chunk);
+        }
+        else {
+            large_bin.store_chunk(chunk);
+        }
     }
 
     void refill_small_bins()
@@ -240,10 +254,7 @@ private:
         if (!some_chunk) {
             return;
         }
-
-        chunk_t *redundant_chunk = small_bins.add_chunk(some_chunk);
-        assert(redundant_chunk);
-        large_bin.store_chunk(redundant_chunk);
+        small_bins.split_and_store_chunk(some_chunk);
     }
 
     /// May return nullptr if there is no chunk with size at least payload_size.
@@ -359,6 +370,8 @@ private:
     T * use_chunk(chunk_t *chunk)
     {
         assert(chunk);
+        assert(!chunk->prev);
+        assert(!chunk->next);
         chunk->used = true;
         return reinterpret_cast<T *>(get_chunk_data(chunk));
     }

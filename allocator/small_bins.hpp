@@ -116,11 +116,18 @@ public:
      * @return Redundant chunk that was created during splitting of given chunk.
      * May not be null.
      */
-    chunk_t * add_chunk(chunk_t *chunk)
+    void add_chunk(chunk_t *chunk)
     {
         assert(chunk);
+        assert(contains_bin_with_chunk_size(chunk->payload_size));
 
-        return disperse_chunk_into_all_bins(chunk);
+        move_chunk_to_correct_bin(chunk);
+    }
+
+    void split_and_store_chunk(chunk_t *chunk)
+    {
+        assert(!contains_bin_with_chunk_size(chunk->payload_size));
+        disperse_chunk_into_all_bins(chunk);
     }
 
     /// Returns bool whether given size fits in some small bin.
@@ -201,7 +208,7 @@ private:
         return nullptr;
     }
 
-    chunk_t * disperse_chunk_into_all_bins(chunk_t *chunk)
+    void disperse_chunk_into_all_bins(chunk_t *chunk)
     {
         assert(chunk);
 
@@ -218,7 +225,8 @@ private:
             }
         }
         chunk_t *redundant_chunk = chunk;
-        return redundant_chunk;
+        assert(contains_bin_with_chunk_size(redundant_chunk->payload_size));
+        move_chunk_to_correct_bin(redundant_chunk);
     }
 
     void move_chunk_to_correct_bin(chunk_t *chunk)
@@ -231,6 +239,7 @@ private:
         bin.chunk_list.prepend_chunk(chunk);
     }
 
+    // TODO: Optimize - do not traverse all bins
     bin_t & get_bin_with_chunk_size(size_t chunk_size)
     {
         for (bin_t &bin : bins) {
