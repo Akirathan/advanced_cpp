@@ -231,7 +231,7 @@ private:
         chunk_t *new_chunk = chunk;
         if (is_chunk_splittable(chunk, desired_payload_size)) {
             new_chunk = split_chunk(chunk, desired_payload_size);
-            put_chunk_in_correct_bin(new_chunk);
+            put_chunk_in_correct_bin(chunk);
         }
         return new_chunk;
     }
