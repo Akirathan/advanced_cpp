@@ -18,7 +18,7 @@ constexpr size_t min_payload_size = 8;
 constexpr size_t min_chunk_size = chunk_header_size + min_payload_size;
 
 
-inline bool fits_in_memory_region(intptr_t start_addr, size_t payload_size, intptr_t end_addr)
+inline bool fits_in_memory_region(address_t start_addr, size_t payload_size, address_t end_addr)
 {
     start_addr += chunk_header_size + payload_size;
     return start_addr <= end_addr;
@@ -30,7 +30,7 @@ inline bool fits_in_memory_region(intptr_t start_addr, size_t payload_size, intp
  * @param payload_size Size of payload
  * @return
  */
-inline chunk_t * initialize_chunk(intptr_t start_addr, size_t payload_size)
+inline chunk_t * initialize_chunk(address_t start_addr, size_t payload_size)
 {
     assert(payload_size >= min_payload_size);
     // TODO: Assert alligned memory?
@@ -48,7 +48,7 @@ inline chunk_t * initialize_chunk(intptr_t start_addr, size_t payload_size)
  * @param end_addr
  * @return
  */
-inline chunk_t * initialize_chunk_in_region(intptr_t start_addr, intptr_t end_addr)
+inline chunk_t * initialize_chunk_in_region(address_t start_addr, address_t end_addr)
 {
     size_t space_for_chunk = diff(start_addr, end_addr);
     assert(space_for_chunk >= min_chunk_size);
@@ -60,12 +60,12 @@ inline chunk_t * initialize_chunk_in_region(intptr_t start_addr, intptr_t end_ad
 inline void * get_chunk_data(const chunk_t *chunk)
 {
     assert(chunk != nullptr);
-    auto ptr = reinterpret_cast<intptr_t>(chunk);
+    auto ptr = reinterpret_cast<address_t>(chunk);
     ptr += chunk_header_size_with_padding;
     return reinterpret_cast<void *>(ptr);
 }
 
-inline chunk_t * get_chunk_from_payload_addr(intptr_t payload_addr)
+inline chunk_t * get_chunk_from_payload_addr(address_t payload_addr)
 {
     payload_addr -= chunk_header_size;
     return reinterpret_cast<chunk_t *>(payload_addr);
@@ -81,7 +81,7 @@ inline size_t get_chunk_size(const chunk_t *chunk)
 inline chunk_t * next_chunk_in_mem(const chunk_t *chunk)
 {
     assert(chunk != nullptr);
-    auto ptr = reinterpret_cast<intptr_t>(chunk);
+    auto ptr = reinterpret_cast<address_t>(chunk);
     ptr += chunk_header_size_with_padding;
     ptr += chunk->payload_size;
     return reinterpret_cast<chunk_t *>(ptr);
@@ -112,9 +112,9 @@ inline chunk_t * split_chunk(chunk_t *chunk, size_t new_chunk_payload_size)
     assert(new_chunk_payload_size >= min_payload_size);
     assert(is_chunk_splittable(chunk, new_chunk_payload_size));
 
-    intptr_t chunk_end = reinterpret_cast<intptr_t>(chunk) + get_chunk_size(chunk);
-    intptr_t new_chunk_payload = chunk_end - new_chunk_payload_size;
-    intptr_t new_chunk_begin = new_chunk_payload - chunk_header_size;
+    address_t chunk_end = reinterpret_cast<address_t>(chunk) + get_chunk_size(chunk);
+    address_t new_chunk_payload = chunk_end - new_chunk_payload_size;
+    address_t new_chunk_begin = new_chunk_payload - chunk_header_size;
 
     chunk_t *new_chunk = initialize_chunk(new_chunk_begin, new_chunk_payload_size);
 

@@ -19,12 +19,12 @@ public:
     static constexpr size_t initial_gap_between_chunks_sizes = 8 * 6;
 
     /// This method has same semantics as SmallBins.initialize_memory.
-    intptr_t initialize_memory(intptr_t start_addr, intptr_t end_addr)
+    address_t initialize_memory(address_t start_addr, address_t end_addr)
     {
         assert(is_aligned(start_addr));
         assert(is_aligned(end_addr));
 
-        intptr_t last_addr = start_addr;
+        address_t last_addr = start_addr;
         size_t chunk_size = min_chunk_size;
         while (fits_in_memory_region(start_addr, chunk_size, end_addr)) {
             chunk_t *new_chunk = initialize_chunk(start_addr, chunk_size);

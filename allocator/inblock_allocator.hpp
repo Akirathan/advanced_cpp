@@ -17,12 +17,12 @@
 
 class inblock_allocator_heap {
 public:
-    static intptr_t get_start_addr()
+    static address_t get_start_addr()
     {
         return start_addr;
     }
 
-    static intptr_t get_end_addr()
+    static address_t get_end_addr()
     {
         return end_addr;
     }
@@ -38,15 +38,15 @@ public:
             throw AllocatorException{"More memory needed."};
         }
 
-        auto intptr = reinterpret_cast<intptr_t>(ptr);
+        auto intptr = reinterpret_cast<address_t>(ptr);
         start_addr = align_addr(intptr, upward);
         end_addr = align_addr(start_addr + n_bytes, downward);
         size = diff(end_addr, start_addr);
     }
 
 private:
-    static intptr_t start_addr;
-    static intptr_t end_addr;
+    static address_t start_addr;
+    static address_t end_addr;
     static size_t size;
 
     enum Direction {
@@ -54,7 +54,7 @@ private:
         upward
     };
 
-    intptr_t align_addr(intptr_t ptr, Direction direction) const
+    address_t align_addr(address_t ptr, Direction direction) const
     {
         if (is_aligned(ptr)) {
             return ptr;
@@ -64,7 +64,7 @@ private:
         }
     }
 
-    intptr_t find_first_aligned(intptr_t ptr, Direction direction) const
+    address_t find_first_aligned(address_t ptr, Direction direction) const
     {
         while (!is_aligned(ptr)) {
             if (direction == downward) {
@@ -119,7 +119,7 @@ public:
     {
         (void) n;
 
-        chunk_t *freed_chunk = get_chunk_from_payload_addr(reinterpret_cast<intptr_t>(ptr));
+        chunk_t *freed_chunk = get_chunk_from_payload_addr(reinterpret_cast<address_t>(ptr));
 
         freed_chunk->used = false;
         freed_chunk->prev = nullptr;
@@ -128,12 +128,12 @@ public:
         put_chunk_in_correct_bin(freed_chunk);
     }
 
-    intptr_t get_chunk_region_start_addr() const
+    address_t get_chunk_region_start_addr() const
     {
         return chunk_region_start_addr;
     }
 
-    intptr_t get_chunk_region_end_addr() const
+    address_t get_chunk_region_end_addr() const
     {
         return chunk_region_end_addr;
     }
@@ -153,13 +153,13 @@ private:
     /// Note that there has to be some space left in the rest of the memory at least for
     /// one minimal chunk.
     static constexpr float mem_size_for_small_bins_ratio = 0.4;
-    const intptr_t heap_start_addr = HeapHolder::heap.get_start_addr();
-    const intptr_t heap_end_addr = HeapHolder::heap.get_end_addr();
-    const intptr_t heap_size = HeapHolder::heap.get_size();
+    const address_t heap_start_addr = HeapHolder::heap.get_start_addr();
+    const address_t heap_end_addr = HeapHolder::heap.get_end_addr();
+    const address_t heap_size = HeapHolder::heap.get_size();
     /// Chunk region is memory region covered by chunks and therefore used.
     /// There may be small amount of memory that is not covered by chunks.
-    intptr_t chunk_region_start_addr;
-    intptr_t chunk_region_end_addr;
+    address_t chunk_region_start_addr;
+    address_t chunk_region_end_addr;
     SmallBins small_bins;
     LargeBin large_bin;
     bool stop_traversal;
@@ -168,11 +168,11 @@ private:
     {
         chunk_region_start_addr = heap_start_addr;
 
-        const intptr_t small_bins_start = heap_start_addr;
-        const intptr_t small_bins_end = small_bins_start + std::floor(mem_size_for_small_bins_ratio * heap_size);
+        const address_t small_bins_start = heap_start_addr;
+        const address_t small_bins_end = small_bins_start + std::floor(mem_size_for_small_bins_ratio * heap_size);
 
-        const intptr_t small_bins_real_end = small_bins.initialize_memory(small_bins_start, small_bins_end);
-        const intptr_t large_bin_real_end = large_bin.initialize_memory(small_bins_real_end, heap_end_addr);
+        const address_t small_bins_real_end = small_bins.initialize_memory(small_bins_start, small_bins_end);
+        const address_t large_bin_real_end = large_bin.initialize_memory(small_bins_real_end, heap_end_addr);
 
         chunk_t *last_chunk = initialize_last_chunk_in_mem(large_bin_real_end);
         if (last_chunk) {
@@ -184,7 +184,7 @@ private:
         put_chunk_in_correct_bin(last_chunk);
     }
 
-    chunk_t * initialize_last_chunk_in_mem(intptr_t chunk_start_addr)
+    chunk_t * initialize_last_chunk_in_mem(address_t chunk_start_addr)
     {
         chunk_t *last_chunk = nullptr;
         if (contains_enough_space_for_chunk(chunk_start_addr, heap_end_addr)) {
@@ -354,8 +354,8 @@ private:
     // TODO: Implement with iterator
     void traverse_memory(std::function<void(chunk_t *)> func)
     {
-        intptr_t start_addr = chunk_region_start_addr;
-        intptr_t end_addr = chunk_region_end_addr;
+        address_t start_addr = chunk_region_start_addr;
+        address_t end_addr = chunk_region_end_addr;
 
         auto *chunk = reinterpret_cast<chunk_t *>(start_addr);
         while (start_addr != end_addr && !stop_traversal) {
@@ -376,7 +376,7 @@ private:
         return reinterpret_cast<T *>(get_chunk_data(chunk));
     }
 
-    bool contains_enough_space_for_chunk(intptr_t start_addr, intptr_t end_addr) const
+    bool contains_enough_space_for_chunk(address_t start_addr, address_t end_addr) const
     {
         return fits_in_memory_region(start_addr, min_payload_size, end_addr);
     }

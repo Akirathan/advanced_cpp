@@ -41,12 +41,12 @@ public:
      * @param end_addr Highest address.
      * @return Real address at which the initialization ended, it may be different than end_addr.
      */
-    intptr_t initialize_memory(intptr_t start_addr, intptr_t end_addr)
+    address_t initialize_memory(address_t start_addr, address_t end_addr)
     {
         assert(is_aligned(start_addr));
 
         std::array<ChunkList, bin_count> initial_chunk_lists;
-        intptr_t last_addr = start_addr;
+        address_t last_addr = start_addr;
         bool fits_in_memory = fits_in_memory_region(start_addr, bins[0].chunk_sizes, end_addr);
 
         while (fits_in_memory) {
