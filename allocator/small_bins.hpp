@@ -96,7 +96,8 @@ public:
      */
     chunk_t * allocate_chunk(size_t payload_size)
     {
-        // TODO: assert(contains_bin_with_chunk_size(payload_size);
+        assert(contains_bin_with_chunk_size(payload_size));
+        
         chunk_t *free_chunk = nullptr;
         if (contains_bin_with_chunk_size(payload_size)) {
             bin_t &bin = get_bin_with_chunk_size(payload_size);
