@@ -20,7 +20,7 @@ constexpr size_t min_chunk_size = chunk_header_size + min_payload_size;
 
 inline bool fits_in_memory_region(intptr_t start_addr, size_t payload_size, intptr_t end_addr)
 {
-    start_addr += chunk_header_size_with_padding + payload_size;
+    start_addr += chunk_header_size + payload_size;
     return start_addr <= end_addr;
 }
 
