@@ -96,6 +96,7 @@ public:
      */
     chunk_t * allocate_chunk(size_t payload_size)
     {
+        // TODO: assert(contains_bin_with_chunk_size(payload_size);
         chunk_t *free_chunk = nullptr;
         if (contains_bin_with_chunk_size(payload_size)) {
             bin_t &bin = get_bin_with_chunk_size(payload_size);
@@ -221,6 +222,7 @@ private:
                 }
                 else {
                     chunk_can_be_split = false;
+                    break;
                 }
             }
         }
@@ -239,27 +241,23 @@ private:
         bin.chunk_list.prepend_chunk(chunk);
     }
 
-    // TODO: Optimize - do not traverse all bins
     bin_t & get_bin_with_chunk_size(size_t chunk_size)
     {
-        for (bin_t &bin : bins) {
-            if (bin.chunk_sizes == chunk_size) {
-                return bin;
-            }
-        }
-        // Unreachable
-        return bins[0];
+        bin_t &bin = bins[get_index_of_bin(chunk_size)];
+        assert(bin.chunk_sizes == chunk_size);
+        return bin;
     }
 
     const bin_t & get_bin_with_chunk_size(size_t chunk_size) const
     {
-        for (const bin_t &bin : bins) {
-            if (bin.chunk_sizes == chunk_size) {
-                return bin;
-            }
-        }
-        // Unreachable
-        return bins[0];
+        const bin_t &bin = bins[get_index_of_bin(chunk_size)];
+        assert(bin.chunk_sizes == chunk_size);
+        return bin;
+    }
+
+    size_t get_index_of_bin(size_t chunk_size) const
+    {
+        return (chunk_size - min_chunk_size_for_bins) / gap_between_bins;
     }
 };
 
