@@ -87,7 +87,9 @@ public:
     static constexpr size_t type_size = sizeof(T);
 
     inblock_allocator()
-        : stop_traversal{false}
+        : chunk_region_start_addr{0},
+        chunk_region_end_addr{0},
+        stop_traversal{false}
     {
         initialize_memory();
     }
@@ -155,7 +157,7 @@ private:
     static constexpr float mem_size_for_small_bins_ratio = 0.4;
     const address_t heap_start_addr = HeapHolder::heap.get_start_addr();
     const address_t heap_end_addr = HeapHolder::heap.get_end_addr();
-    const address_t heap_size = HeapHolder::heap.get_size();
+    const size_t heap_size = HeapHolder::heap.get_size();
     /// Chunk region is memory region covered by chunks and therefore used.
     /// There may be small amount of memory that is not covered by chunks.
     address_t chunk_region_start_addr;
@@ -169,7 +171,9 @@ private:
         chunk_region_start_addr = heap_start_addr;
 
         const address_t small_bins_start = heap_start_addr;
-        const address_t small_bins_end = small_bins_start + std::floor(mem_size_for_small_bins_ratio * heap_size);
+        const address_t small_bins_end = small_bins_start +
+                static_cast<address_t>(std::floor(mem_size_for_small_bins_ratio * heap_size));
+        assert(small_bins_end < heap_end_addr);
 
         const address_t small_bins_real_end = small_bins.initialize_memory(small_bins_start, small_bins_end);
         const address_t large_bin_real_end = large_bin.initialize_memory(small_bins_real_end, heap_end_addr);
