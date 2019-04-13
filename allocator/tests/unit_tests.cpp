@@ -1041,3 +1041,23 @@ BOOST_AUTO_TEST_CASE(allocator_in_std_container_mem_init_test)
     dump_allocator_stats(stats);
     check_allocator_consistency(stats);
 }
+
+BOOST_AUTO_TEST_CASE(allocator_init_for_two_vectors_mem_init_test)
+{
+    std::vector<uint8_t> mem;
+    mem.resize(2500000);
+
+    holder::heap(mem.data(), 2500000);
+    for (size_t i = 0; i < 2; i++) {
+        Vector<int> v;
+
+        BOOST_TEST_MESSAGE("Stats after " << i << "-th init.");
+        auto stats = get_allocator_stats(v.get_allocator());
+        dump_allocator_stats(stats);
+        check_allocator_stats(stats);
+        check_allocator_consistency(stats);
+
+        size_t free_chunks = count_free_chunks(stats.used_mem_start, stats.used_mem_end);
+        BOOST_TEST_MESSAGE("Free chunks cout = " << free_chunks);
+    }
+}
