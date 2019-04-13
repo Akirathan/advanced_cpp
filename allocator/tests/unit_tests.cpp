@@ -680,8 +680,8 @@ template <typename T, typename HeapHolder>
 allocator_stats_t get_allocator_stats(const inblock_allocator<T, HeapHolder> &allocator)
 {
     allocator_stats_t stats;
-    stats.used_mem_start = allocator.get_chunk_region_start_addr();
-    stats.used_mem_end = allocator.get_chunk_region_end_addr();
+    stats.used_mem_start = inblock_allocator<T, HeapHolder>::heap_type::chunk_region_start_addr;
+    stats.used_mem_end = inblock_allocator<T, HeapHolder>::heap_type::chunk_region_end_addr;
     stats.available_mem_size = diff(holder::heap.get_start_addr(), holder::heap.get_end_addr());
     stats.used_mem_size = diff(stats.used_mem_start, stats.used_mem_end);
 
@@ -1060,4 +1060,28 @@ BOOST_AUTO_TEST_CASE(allocator_init_for_two_vectors_mem_init_test)
         size_t free_chunks = count_free_chunks(stats.used_mem_start, stats.used_mem_end);
         BOOST_TEST_MESSAGE("Free chunks cout = " << free_chunks);
     }
+}
+
+BOOST_AUTO_TEST_CASE(allocator_two_allocators_on_one_heap_test)
+{
+    const size_t mem_size = 10 * 1024;
+    std::vector<uint8_t> mem;
+    mem.resize(mem_size);
+    holder::heap(mem.data(), mem_size);
+
+    inblock_allocator<int, holder> allocator_1;
+    // Initialize second allocator.
+    inblock_allocator<int, holder> allocator_2;
+
+    auto stats_1 = get_allocator_stats(allocator_1);
+    BOOST_TEST_MESSAGE("Allocator stats 1:");
+    dump_allocator_stats(stats_1);
+    check_allocator_stats(stats_1);
+    check_allocator_consistency(stats_1);
+
+    auto stats_2 = get_allocator_stats(allocator_2);
+    BOOST_TEST_MESSAGE("Allocator stats 2:");
+    dump_allocator_stats(stats_2);
+    check_allocator_stats(stats_2);
+    check_allocator_consistency(stats_2);
 }

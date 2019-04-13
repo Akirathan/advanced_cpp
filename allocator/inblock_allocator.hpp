@@ -18,6 +18,11 @@
 
 class inblock_allocator_heap {
 public:
+    /// Chunk region is memory region covered by chunks and therefore used.
+    /// There may be small amount of memory that is not covered by chunks.
+    static address_t chunk_region_start_addr;
+    static address_t chunk_region_end_addr;
+
     static address_t get_start_addr()
     {
         return start_addr;
@@ -31,6 +36,21 @@ public:
     static size_t get_size()
     {
         return size;
+    }
+
+    static size_t get_allocators_count()
+    {
+        return allocators_count;
+    }
+
+    static void increase_allocators_count()
+    {
+        allocators_count++;
+    }
+
+    static void decrease_allocators_count()
+    {
+        allocators_count--;
     }
 
     void operator()(void *ptr, size_t n_bytes)
@@ -49,6 +69,7 @@ private:
     static address_t start_addr;
     static address_t end_addr;
     static size_t size;
+    static size_t allocators_count;
 
     enum Direction {
         downward,
@@ -85,14 +106,34 @@ template<typename T, typename HeapHolder>
 class inblock_allocator {
 public:
     using value_type = T;
+    using heap_type = decltype(HeapHolder::heap);
     static constexpr size_t type_size = sizeof(T);
 
     inblock_allocator()
-        : chunk_region_start_addr{0},
-        chunk_region_end_addr{0},
-        stop_traversal{false}
+        : stop_traversal{false}
     {
-        initialize_memory();
+        BOOST_LOG_TRIVIAL(debug) << "Constructing allocator";
+
+        increase_heap_counters();
+
+        if (are_more_allocators_on_heap()) {
+            scan_memory_for_free_chunks();
+        }
+        else {
+            initialize_chunks();
+        }
+
+    }
+
+    ~inblock_allocator()
+    {
+        BOOST_LOG_TRIVIAL(debug) << "Destructing allocator";
+
+        decrease_heap_counters();
+
+        if (heap_type::get_allocators_count() == 0) {
+            release_all_chunks();
+        }
     }
 
     bool operator==(const inblock_allocator &) const
@@ -134,16 +175,6 @@ public:
         put_chunk_in_correct_bin(freed_chunk);
     }
 
-    address_t get_chunk_region_start_addr() const
-    {
-        return chunk_region_start_addr;
-    }
-
-    address_t get_chunk_region_end_addr() const
-    {
-        return chunk_region_end_addr;
-    }
-
     const SmallBins & get_small_bins() const
     {
         return small_bins;
@@ -159,20 +190,17 @@ private:
     /// Note that there has to be some space left in the rest of the memory at least for
     /// one minimal chunk.
     static constexpr float mem_size_for_small_bins_ratio = 0.4;
-    const address_t heap_start_addr = HeapHolder::heap.get_start_addr();
-    const address_t heap_end_addr = HeapHolder::heap.get_end_addr();
-    const size_t heap_size = HeapHolder::heap.get_size();
-    /// Chunk region is memory region covered by chunks and therefore used.
-    /// There may be small amount of memory that is not covered by chunks.
-    address_t chunk_region_start_addr;
-    address_t chunk_region_end_addr;
+    const address_t heap_start_addr = heap_type::get_start_addr();
+    const address_t heap_end_addr = heap_type::get_end_addr();
+    const size_t heap_size = heap_type::get_size();
     SmallBins small_bins;
     LargeBin large_bin;
     bool stop_traversal;
 
-    void initialize_memory()
+    void initialize_chunks()
     {
-        chunk_region_start_addr = heap_start_addr;
+        BOOST_LOG_TRIVIAL(debug) << "Initializing chunks";
+        heap_type::chunk_region_start_addr = heap_start_addr;
 
         const address_t small_bins_start = heap_start_addr;
         const address_t small_bins_end = small_bins_start +
@@ -184,12 +212,23 @@ private:
 
         chunk_t *last_chunk = initialize_last_chunk_in_mem(large_bin_real_end);
         if (last_chunk) {
-            chunk_region_end_addr = heap_end_addr;
+            heap_type::chunk_region_end_addr = heap_end_addr;
         }
         else {
-            chunk_region_end_addr = large_bin_real_end;
+            heap_type::chunk_region_end_addr = large_bin_real_end;
         }
         put_chunk_in_correct_bin(last_chunk);
+    }
+
+    void scan_memory_for_free_chunks()
+    {
+        BOOST_LOG_TRIVIAL(debug) << "Scanning memory for chunks";
+
+        traverse_memory([this](chunk_t *chunk) {
+            if (!chunk->used) {
+                put_chunk_in_correct_bin(chunk);
+            }
+        });
     }
 
     chunk_t * initialize_last_chunk_in_mem(address_t chunk_start_addr)
@@ -199,6 +238,15 @@ private:
             last_chunk = initialize_chunk_in_region(chunk_start_addr, heap_end_addr);
         }
         return last_chunk;
+    }
+
+    void release_all_chunks()
+    {
+        BOOST_LOG_TRIVIAL(debug) << "Releasing all chunks";
+
+        traverse_memory([](chunk_t *chunk) {
+            chunk->used = false;
+        });
     }
 
     bool allocation_fits_in_small_bins(size_t bytes_num) const
@@ -362,8 +410,8 @@ private:
     // TODO: Implement with iterator
     void traverse_memory(std::function<void(chunk_t *)> func)
     {
-        address_t start_addr = chunk_region_start_addr;
-        address_t end_addr = chunk_region_end_addr;
+        address_t start_addr = heap_type::chunk_region_start_addr;
+        address_t end_addr = heap_type::chunk_region_end_addr;
 
         auto *chunk = reinterpret_cast<chunk_t *>(start_addr);
         while (start_addr != end_addr && !stop_traversal) {
@@ -382,6 +430,21 @@ private:
         assert(!chunk->next);
         chunk->used = true;
         return reinterpret_cast<T *>(get_chunk_data(chunk));
+    }
+
+    bool are_more_allocators_on_heap() const
+    {
+        return heap_type::get_allocators_count() > 1;
+    }
+
+    void increase_heap_counters()
+    {
+        heap_type::increase_allocators_count();
+    }
+
+    void decrease_heap_counters()
+    {
+        heap_type::decrease_allocators_count();
     }
 
     bool contains_enough_space_for_chunk(address_t start_addr, address_t end_addr) const
