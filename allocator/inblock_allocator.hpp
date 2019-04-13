@@ -7,6 +7,7 @@
 #include <cassert>
 #include <vector>
 #include <cmath>
+#include <boost/log/trivial.hpp>
 #include "allocator_exception.hpp"
 #include "small_bins.hpp"
 #include "large_bin.hpp"
@@ -109,6 +110,8 @@ public:
         size_t bytes_num = byte_count(n);
         bytes_num = align_size_up(bytes_num);
 
+        BOOST_LOG_TRIVIAL(debug) << "Allocating " << bytes_num << " bytes.";
+
         if (allocation_fits_in_small_bins(bytes_num)) {
             return allocate_in_small_bins(bytes_num);
         }
@@ -120,6 +123,7 @@ public:
     void deallocate(T *ptr, size_t n) noexcept
     {
         (void) n;
+        BOOST_LOG_TRIVIAL(debug) << "Releasing " << byte_count(n) << " bytes.";
 
         chunk_t *freed_chunk = get_chunk_from_payload_addr(reinterpret_cast<address_t>(ptr));
 
