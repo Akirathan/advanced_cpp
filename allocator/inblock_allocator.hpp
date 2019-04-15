@@ -22,6 +22,8 @@ public:
     /// There may be small amount of memory that is not covered by chunks.
     static address_t chunk_region_start_addr;
     static address_t chunk_region_end_addr;
+    static SmallBins small_bins;
+    static LargeBin large_bin;
 
     static address_t get_start_addr()
     {
@@ -195,8 +197,8 @@ private:
     const address_t heap_start_addr = heap_type::get_start_addr();
     const address_t heap_end_addr = heap_type::get_end_addr();
     const size_t heap_size = heap_type::get_size();
-    SmallBins small_bins;
-    LargeBin large_bin;
+    SmallBins &small_bins = heap_type::small_bins;
+    LargeBin &large_bin = heap_type::large_bin;
     bool stop_traversal;
 
     void initialize_chunks()
