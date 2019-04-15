@@ -78,10 +78,11 @@ int main ()
     init_log();
 
 #ifndef USE_STD_ALLOCATOR
+    const size_t mem_size = 3 * 1024 * 1024; // 25 * 100 * 1000 (2,5 MB)
 	std::vector<uint8_t> mem;
-	mem.resize(2500000);
+	mem.resize(mem_size);
 
-	holder::heap(mem.data (), 2500000);
+	holder::heap(mem.data (), mem_size);
 #endif
 
 	std::cout << "Repetitions = " << repetitions << std::endl;
