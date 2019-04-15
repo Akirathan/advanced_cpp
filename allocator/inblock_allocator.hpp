@@ -111,23 +111,26 @@ public:
     using heap_type = decltype(HeapHolder::heap);
     static constexpr size_t type_size = sizeof(T);
 
-    inblock_allocator()
+    inblock_allocator() noexcept
         : stop_traversal{false}
     {
         BOOST_LOG_TRIVIAL(debug) << "Constructing allocator";
 
         increase_heap_counters();
 
-        if (are_more_allocators_on_heap()) {
-            scan_memory_for_free_chunks();
-        }
-        else {
+        if (heap_type::get_allocators_count() == 1) {
             initialize_chunks();
         }
-
     }
 
-    ~inblock_allocator()
+    inblock_allocator(const inblock_allocator<T, HeapHolder> &) noexcept
+        : stop_traversal{false}
+    {
+        BOOST_LOG_TRIVIAL(info) << "Copy-constructing allocator";
+        increase_heap_counters();
+    }
+
+    ~inblock_allocator() noexcept
     {
         BOOST_LOG_TRIVIAL(debug) << "Destructing allocator";
 
@@ -222,17 +225,6 @@ private:
             heap_type::chunk_region_end_addr = large_bin_real_end;
         }
         put_chunk_in_correct_bin(last_chunk);
-    }
-
-    void scan_memory_for_free_chunks()
-    {
-        BOOST_LOG_TRIVIAL(debug) << "Scanning memory for chunks";
-
-        traverse_memory([this](chunk_t *chunk) {
-            if (!chunk->used) {
-                put_chunk_in_correct_bin(chunk);
-            }
-        });
     }
 
     chunk_t * initialize_last_chunk_in_mem(address_t chunk_start_addr)
