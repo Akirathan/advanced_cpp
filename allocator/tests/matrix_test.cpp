@@ -2,6 +2,9 @@
 #include <cassert>
 #include <iostream>
 #include <vector>
+#include <boost/log/core.hpp>
+#include <boost/log/trivial.hpp>
+#include <boost/log/expressions.hpp>
 #include "test_common.hpp"
 
 //uncomment this to use std::allocator
@@ -95,8 +98,10 @@ static void run_myalloc()
     a = ugly_mult_matrix (a, b);
 
     for (size_t i = 0; i < SIZE; ++i) {
-        for (size_t j = 0; j < SIZE; ++j) std::cout << a[i][j] << ' ';
-        std::cout << std::endl;
+        for (size_t j = 0; j < SIZE; ++j) {
+            //std::cout << a[i][j] << ' ';
+        }
+        //std::cout << std::endl;
     }
 }
 
@@ -119,13 +124,17 @@ static void run_stdalloc()
     a = std_ugly_mult_matrix (a, b);
 
     for (size_t i = 0; i < SIZE; ++i) {
-        for (size_t j = 0; j < SIZE; ++j) std::cout << a[i][j] << ' ';
-        std::cout << std::endl;
+        for (size_t j = 0; j < SIZE; ++j) {
+            //std::cout << a[i][j] << ' ';
+        }
+        //std::cout << std::endl;
     }
 }
 
 int main ()
 {
+    boost::log::core::get()->set_filter(boost::log::trivial::severity >= boost::log::trivial::warning);
+
 #ifndef USE_STD_ALLOCATOR
 	std::vector<uint8_t> mem;
 	mem.resize (memsize);
