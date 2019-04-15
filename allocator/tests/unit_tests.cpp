@@ -1020,12 +1020,12 @@ BOOST_AUTO_TEST_CASE(allocator_alloc_and_dealloc_random_test)
 template<typename V>
 using Vector = std::vector<V, inblock_allocator<V, holder>>;
 
-BOOST_AUTO_TEST_CASE(allocator_in_std_container_mem_init_test)
+BOOST_AUTO_TEST_CASE(allocator_in_vector_mem_init_test)
 {
     std::vector<uint8_t> mem;
-    mem.resize(2500000);
+    mem.resize(1024);
 
-    holder::heap(mem.data(), 2500000);
+    holder::heap(mem.data(), 1024);
     Vector<int> v;
 
     auto stats = get_allocator_stats(v.get_allocator());
@@ -1039,6 +1039,25 @@ BOOST_AUTO_TEST_CASE(allocator_in_std_container_mem_init_test)
     BOOST_TEST_MESSAGE("Stats after small alloc:");
     stats = get_allocator_stats(v.get_allocator());
     dump_allocator_stats(stats);
+    check_allocator_consistency(stats);
+}
+
+BOOST_AUTO_TEST_CASE(allocator_in_vector_simple_test)
+{
+    const size_t mem_size = 5 * 1024;
+    std::vector<uint8_t> mem;
+    mem.resize(mem_size);
+    holder::heap(mem.data(), mem_size);
+
+    Vector<int> vec;
+    for (size_t i = 0; i < 42; i++) {
+        vec.push_back(i);
+    }
+
+    BOOST_TEST_MESSAGE("Stats after pushbacks to vector:");
+    auto stats = get_allocator_stats(vec.get_allocator());
+    dump_allocator_stats(stats);
+    check_allocator_stats(stats);
     check_allocator_consistency(stats);
 }
 
@@ -1062,7 +1081,7 @@ BOOST_AUTO_TEST_CASE(allocator_init_for_two_vectors_mem_init_test)
     }
 }
 
-BOOST_AUTO_TEST_CASE(allocator_two_allocators_on_one_heap_test)
+BOOST_AUTO_TEST_CASE(two_allocators_on_one_heap)
 {
     const size_t mem_size = 10 * 1024;
     std::vector<uint8_t> mem;
@@ -1127,4 +1146,58 @@ BOOST_AUTO_TEST_CASE(second_allocator_deallocates_after_first_one)
     check_allocator_stats(stats_2);
     check_allocator_consistency(stats_2);
 
+}
+
+BOOST_AUTO_TEST_CASE(allocator_init_vector_of_vectors_test)
+{
+    const size_t mem_size = 10 * 1024;
+    std::vector<uint8_t> mem;
+    mem.resize(mem_size);
+    holder::heap(mem.data(), mem_size);
+
+    // Initializes two allocators on one heap.
+    Vector<Vector<int>> vec;
+    vec.resize(1);
+
+    auto outer_allocator = vec.get_allocator();
+    auto inner_allocator = vec[0].get_allocator();
+    auto outer_stats = get_allocator_stats(outer_allocator);
+    auto inner_stats = get_allocator_stats(inner_allocator);
+
+    BOOST_TEST_MESSAGE("Outer allocator stats:");
+    dump_allocator_stats(outer_stats);
+    check_allocator_stats(outer_stats);
+    check_allocator_consistency(outer_stats);
+
+    BOOST_TEST_MESSAGE("Inner allocator stats:");
+    dump_allocator_stats(inner_stats);
+    check_allocator_stats(inner_stats);
+    check_allocator_consistency(inner_stats);
+}
+
+BOOST_AUTO_TEST_CASE(allocate_in_more_iterations)
+{
+    const size_t mem_size = 3 * 1024 * 1024;
+    std::vector<uint8_t> mem;
+    mem.resize(mem_size);
+    holder::heap(mem.data(), mem_size);
+
+    const size_t repetitions = 3;
+    const size_t pushbacks = 100 * 1000;
+    size_t check_time = 426;
+
+    for (size_t i = 0; i < repetitions; i++) {
+        Vector<int> vec;
+
+        for (size_t j = 0; j < pushbacks; j++) {
+            vec.push_back(j);
+            if (check_time == 0) {
+                auto stats = get_allocator_stats(vec.get_allocator());
+                dump_allocator_stats(stats);
+                check_allocator_consistency(stats);
+                check_time = 426;
+            }
+            check_time--;
+        }
+    }
 }
