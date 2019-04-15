@@ -12,7 +12,6 @@ set(SOURCES
         allocator_exception.hpp
         common.hpp
         chunk.hpp
-        chunk_list.hpp
         inblock_allocator.hpp
         inblock_allocator.cpp
         )
