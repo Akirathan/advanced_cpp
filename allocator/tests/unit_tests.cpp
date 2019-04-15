@@ -1085,3 +1085,46 @@ BOOST_AUTO_TEST_CASE(allocator_two_allocators_on_one_heap_test)
     check_allocator_stats(stats_2);
     check_allocator_consistency(stats_2);
 }
+
+/**
+ * Two allocators are initialized. Second allocator is initialized after first one makes
+ * some allocations.
+ */
+BOOST_AUTO_TEST_CASE(second_allocator_initialized_after_first_allocates)
+{
+    const size_t mem_size = 10 * 1024;
+    init_heap(mem_size);
+
+    inblock_allocator<int, holder> allocator_1;
+    allocator_1.allocate(1);
+
+    inblock_allocator<int, holder> allocator_2;
+    auto stats_2 = get_allocator_stats(allocator_2);
+    BOOST_TEST_MESSAGE("Allocator stats 2:");
+    dump_allocator_stats(stats_2);
+    check_allocator_stats(stats_2);
+    check_allocator_consistency(stats_2);
+}
+
+BOOST_AUTO_TEST_CASE(second_allocator_deallocates_after_first_one)
+{
+    init_heap(10 * 1024);
+    inblock_allocator<int, holder> allocator_1;
+    inblock_allocator<int, holder> allocator_2;
+
+    int *allocation = allocator_1.allocate(45);
+    allocator_2.deallocate(allocation, 45);
+
+    auto stats_1 = get_allocator_stats(allocator_1);
+    BOOST_TEST_MESSAGE("Allocator stats 1:");
+    dump_allocator_stats(stats_1);
+    check_allocator_stats(stats_1);
+    check_allocator_consistency(stats_1);
+
+    auto stats_2 = get_allocator_stats(allocator_2);
+    BOOST_TEST_MESSAGE("Allocator stats 2:");
+    dump_allocator_stats(stats_2);
+    check_allocator_stats(stats_2);
+    check_allocator_consistency(stats_2);
+
+}
