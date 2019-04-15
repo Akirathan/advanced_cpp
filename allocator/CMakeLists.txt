@@ -4,7 +4,7 @@ set(CMAKE_CXX_STANDARD 17)
 add_compile_options("-Wall" "-Wextra")
 add_compile_definitions("BOOST_ALL_DYN_LINK")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O2")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -Og")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g ")
 
 find_package(Boost COMPONENTS log system unit_test_framework REQUIRED)
 #find_package(Threads)
@@ -24,19 +24,19 @@ set(SOURCES
         )
 
 # My main
-add_executable(allocator
-        ${SOURCES}
+add_executable(my_main
         main.cpp
         )
 
 # Link with boost libs
-target_link_libraries(allocator ${Boost_LIBRARIES})
+target_link_libraries(my_main ${Boost_LIBRARIES})
 
 
 # Basic test
 add_executable(basic_test
         ${SOURCES}
         tests/basic_test.cpp
+        tests/test_common.hpp
         )
 
 target_link_libraries(basic_test ${Boost_LIBRARIES})
@@ -45,6 +45,7 @@ target_link_libraries(basic_test ${Boost_LIBRARIES})
 add_executable(matrix_test
         ${SOURCES}
         tests/matrix_test.cpp
+        tests/test_common.hpp
         )
 
 target_link_libraries(matrix_test ${Boost_LIBRARIES})
