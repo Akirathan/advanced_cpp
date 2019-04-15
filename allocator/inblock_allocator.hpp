@@ -163,8 +163,10 @@ public:
 
     void deallocate(T *ptr, size_t n) noexcept
     {
-        (void) n;
-        BOOST_LOG_TRIVIAL(debug) << "Releasing " << byte_count(n) << " bytes.";
+        size_t bytes_num = byte_count(n);
+        bytes_num = align_size_up(bytes_num);
+
+        BOOST_LOG_TRIVIAL(debug) << "Releasing " << bytes_num << " bytes.";
 
         chunk_t *freed_chunk = get_chunk_from_payload_addr(reinterpret_cast<address_t>(ptr));
 
