@@ -4,7 +4,6 @@
 #include "common.hpp"
 
 struct chunk_t {
-    chunk_t *prev;
     chunk_t *next;
     size_t payload_size;
     bool used;
@@ -32,7 +31,7 @@ inline chunk_t * initialize_chunk(address_t start_addr, size_t payload_size)
 {
     assert(payload_size >= min_payload_size);
 
-    chunk_t header{nullptr, nullptr, payload_size, false};
+    chunk_t header{nullptr, payload_size, false};
 
     auto mem_addr = reinterpret_cast<chunk_t *>(start_addr);
     *mem_addr = header;
