@@ -40,3 +40,6 @@ add_executable(matrix_test
 
 target_link_libraries(matrix_test ${Boost_LIBRARIES})
 
+
+include(unit_tests.cmake)
+
