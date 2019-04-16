@@ -1,9 +1,23 @@
 
 #include <iostream>
 #include <vector>
+#include <sys/time.h>
+#include <boost/log/core.hpp>
+#include <boost/log/trivial.hpp>
+#include <boost/log/expressions.hpp>
+#include "test_common.hpp"
 
 //uncomment this if you want to use std::allocator instead (and see the result as-is)
 //#define USE_STD_ALLOCATOR
+
+
+static void init_log()
+{
+    boost::log::core::get()->set_filter
+    (
+        boost::log::trivial::severity >= boost::log::trivial::warning
+    );
+}
 
 #ifdef USE_STD_ALLOCATOR
 
@@ -23,23 +37,67 @@ template<typename V>
 using Vector = std::vector<V, inblock_allocator<V, holder>>;
 #endif
 
+constexpr size_t repetitions = 1000; // 1000
+constexpr size_t push_backs = 100000; // 100000
+
+static void run_myallocator()
+{
+    for (size_t rep = 0; rep < repetitions; ++rep) {
+
+        Vector<int> v;
+
+        for (size_t i = 0; i < push_backs; ++i) {
+            v.push_back (i);
+        }
+
+        //std::cout << v[rep] << std::endl;
+
+        v.clear ();
+    }
+}
+
+static void run_stdallocator()
+{
+    for (size_t rep = 0; rep < repetitions; ++rep) {
+
+        std::vector<int> v;
+
+        for (size_t i = 0; i < push_backs; ++i) {
+            v.push_back (i);
+        }
+
+        //std::cout << v[rep] << std::endl;
+
+        v.clear ();
+    }
+}
+
+
 int main ()
 {
-#ifndef USE_STD_ALLOCATOR
-	std::vector<uint8_t> mem;
-	mem.resize (2500000);
+    init_log();
 
-	holder::heap (mem.data (), 2500000);
+#ifndef USE_STD_ALLOCATOR
+    const size_t mem_size = 25 * 100 * 1000; // 25 * 100 * 1000 (2,5 MB)
+	std::vector<uint8_t> mem;
+	mem.resize(mem_size);
+
+	holder::heap(mem.data (), mem_size);
 #endif
 
-	for (size_t rep = 0; rep < 1000; ++rep) {
+	std::cout << "Repetitions = " << repetitions << std::endl;
+	std::cout << "Push backs = " << push_backs << std::endl;
 
-		Vector<int> v;
+    double my_wall_time = measure(run_myallocator);
 
-		for (size_t i = 0; i < 100000; ++i) v.push_back (i);
-		std::cout << v[rep] << std::endl;
+    std::cout << "Times for my allocator:" << std::endl;
+    std::cout << "\tWall Time = " << my_wall_time << std::endl;
 
-		v.clear ();
-	}
-	return 0;
+    // ==========
+    double std_wall_time = measure(run_stdallocator);
+
+    std::cout << "Times for std allocator:" << std::endl;
+    std::cout << "\tWall Time = " << std_wall_time << std::endl;
+
+    std::cout << "Slowdown of my allocator = " << count_slowdown(std_wall_time, my_wall_time) << std::endl;
 }
