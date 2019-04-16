@@ -14,6 +14,7 @@ set(SOURCES
         chunk.hpp
         inblock_allocator.hpp
         inblock_allocator.cpp
+        tests/test_common.hpp
         )
 
 # My main
