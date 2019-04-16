@@ -1,7 +1,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <boost/log/trivial.hpp>
+#include <tuple>
 #include "common.hpp"
 #include "chunk.hpp"
 #include "allocator_exception.hpp"
@@ -99,27 +99,27 @@ public:
 
     inblock_allocator() noexcept
     {
-        BOOST_LOG_TRIVIAL(info) << "Constructing allocator";
+        //BOOST_LOG_TRIVIAL(info) << "Constructing allocator";
     }
 
     inblock_allocator(const inblock_allocator<T, HeapHolder> &) noexcept
     {
-        BOOST_LOG_TRIVIAL(info) << "Copy-constructing allocator";
+        //BOOST_LOG_TRIVIAL(info) << "Copy-constructing allocator";
     }
 
     ~inblock_allocator() noexcept
     {
-        BOOST_LOG_TRIVIAL(info) << "Destructing allocator";
+        //BOOST_LOG_TRIVIAL(info) << "Destructing allocator";
     }
 
     bool operator==(const inblock_allocator &) const
     {
-        return false;
+        return true;
     }
 
     bool operator!=(const inblock_allocator &) const
     {
-        return true;
+        return false;
     }
 
     T * allocate(size_t n)
@@ -127,7 +127,7 @@ public:
         size_t bytes_num = byte_count(n);
         bytes_num = align_size_up(bytes_num);
 
-        BOOST_LOG_TRIVIAL(debug) << "Allocating " << bytes_num << " bytes.";
+        //BOOST_LOG_TRIVIAL(debug) << "Allocating " << bytes_num << " bytes.";
 
         chunk_t *new_chunk = allocate_chunk(bytes_num);
         if (!new_chunk) {
@@ -140,16 +140,12 @@ public:
 
     void deallocate(T *ptr, size_t n) noexcept
     {
-        size_t bytes_num = byte_count(n);
-        bytes_num = align_size_up(bytes_num);
-
-        BOOST_LOG_TRIVIAL(debug) << "Releasing " << bytes_num << " bytes.";
-
+        (void)n;
         chunk_t *freed_chunk = get_chunk_from_payload_addr(reinterpret_cast<address_t>(ptr));
         freed_chunk->used = false;
 
         if (!remove_from_list(freed_chunk)) {
-            BOOST_LOG_TRIVIAL(warning) << "Chunk to deallocate was not found in list";
+            //BOOST_LOG_TRIVIAL(warning) << "Chunk to deallocate was not found in list";
         }
     }
 
@@ -341,5 +337,4 @@ private:
     {
         return type_size * type_count;
     }
-
 };

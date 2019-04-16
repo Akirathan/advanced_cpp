@@ -10,7 +10,7 @@ public:
         : msg{msg}
     {}
 
-    virtual const char *what() const throw()
+    const char *what() const noexcept override
     {
         return msg.c_str();
     }
