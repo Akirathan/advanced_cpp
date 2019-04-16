@@ -45,7 +45,7 @@ public:
     void operator()(void *ptr, size_t n_bytes)
     {
         if (n_bytes < min_chunk_size) {
-            throw AllocatorException{"More memory needed."};
+            throw allocator_exception{"More memory needed."};
         }
 
         auto intptr = reinterpret_cast<address_t>(ptr);
@@ -131,7 +131,7 @@ public:
 
         chunk_t *new_chunk = allocate_chunk(bytes_num);
         if (!new_chunk) {
-            throw AllocatorException{"Run out of memory"};
+            throw allocator_exception{"Run out of memory"};
         }
 
         new_chunk->used = true;

@@ -4,9 +4,9 @@
 #ifndef ALLOCATOR_EXCEPTION_HPP
 #define ALLOCATOR_EXCEPTION_HPP
 
-class AllocatorException : public std::exception {
+class allocator_exception : public std::exception {
 public:
-    explicit AllocatorException(const std::string &msg)
+    explicit allocator_exception(const std::string &msg)
         : msg{msg}
     {}
 
