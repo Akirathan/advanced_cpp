@@ -6,10 +6,11 @@
 #include "chunk.hpp"
 #include "allocator_exception.hpp"
 
+using chunk_list_t = chunk_t *;
 
 class inblock_allocator_heap {
 public:
-    static chunk_t *chunk_list;
+    static chunk_list_t chunk_list;
 
     static address_t get_start_addr()
     {
@@ -101,7 +102,7 @@ public:
         BOOST_LOG_TRIVIAL(info) << "Constructing allocator";
     }
 
-    inblock_allocator(const inblock_allocator<T, HeapHolder> &other_allocator) noexcept
+    inblock_allocator(const inblock_allocator<T, HeapHolder> &) noexcept
     {
         BOOST_LOG_TRIVIAL(info) << "Copy-constructing allocator";
     }
@@ -161,7 +162,7 @@ private:
     const address_t heap_start_addr = heap_type::get_start_addr();
     const address_t heap_end_addr = heap_type::get_end_addr();
     const size_t heap_size = heap_type::get_size();
-    chunk_t *chunk_list = heap_type::chunk_list;
+    chunk_list_t &chunk_list = heap_type::chunk_list;
 
     chunk_t * allocate_chunk(size_t payload_size)
     {
