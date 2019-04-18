@@ -1,4 +1,4 @@
-#include "du2matrix.hpp"
+#include "../matrix.hpp"
 
 #include <iostream>
 #include <algorithm>
