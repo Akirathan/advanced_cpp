@@ -24,8 +24,8 @@ public:
 
     class cols_t;
     class cols_iterator;
+    class row_element_iterator;
     class rows_t;
-    class rows_iterator;
 
     class cols_t {
 
@@ -35,7 +35,8 @@ public:
 
     };
 
-    class rows_t {
+
+    class row_element_iterator {
     public:
         using value_type = T;
         using reference = T&;
@@ -43,29 +44,35 @@ public:
         using difference_type = std::ptrdiff_t;
         using iterator_category = std::forward_iterator_tag;
 
-        rows_t(std::vector<T> &row)
+        row_element_iterator(std::vector<T> &row)
             : m_row(row),
             m_current_elem{nullptr}
         {}
 
-        rows_t begin()
+        void set_row(std::vector<T> &row)
         {
-            rows_t begin_iterator{m_row};
-            begin_iterator.m_current_elem = m_row[0];
-            return begin_iterator;
+            m_row = row;
+            m_current_elem = m_row.data();
         }
 
-        rows_t end()
+        pointer begin()
         {
-            rows_t end_iterator{m_row};
-            end_iterator.m_current_elem = m_row[m_row.size() - 1];
-            end_iterator.m_current_elem++;
-            return end_iterator;
+            return m_row.data();
         }
 
-        bool operator==(const rows_t &other_iterator)
+        pointer end()
+        {
+            return m_row.data() + m_row.size();
+        }
+
+        bool operator==(const row_element_iterator &other_iterator)
         {
             return m_current_elem == other_iterator.m_current_elem;
+        }
+
+        bool operator!=(const row_element_iterator &other_iterator)
+        {
+            return !(*this == other_iterator);
         }
 
         reference operator*()
@@ -73,64 +80,65 @@ public:
             return *m_current_elem;
         }
 
-        rows_t & operator++()
+        row_element_iterator & operator++()
         {
             m_current_elem++;
             return *this;
         }
 
     private:
-        friend rows_iterator;
-
         std::vector<T> &m_row;
         T *m_current_elem;
     };
 
-    class rows_iterator {
+    /**
+     * Entire row iterator.
+     */
+    class rows_t {
     public:
-        using value_type = rows_t;
-        using reference = rows_t&;
-        using pointer = rows_t*;
-        using difference_type = std::ptrdiff_t;
+        using value_type = row_element_iterator;
+        using reference = row_element_iterator&;
+        using pointer = row_element_iterator*;
+        using difference_type = std::ptrdiff_t; // TODO: Jinej difference_type
         using iterator_category = std::forward_iterator_tag;
 
-        explicit rows_iterator(content_type &content)
-            : m_content{content},
-            m_rows{content[0]},
-            m_content_idx{0}
+        explicit rows_t(content_type &content)
+                : m_content{content},
+                  m_row_element_iterator{content[0]},
+                  m_content_idx{0}
         { }
 
-        rows_iterator begin()
+        rows_t begin()
         {
-            rows_iterator begin_iterator{m_content};
+            rows_t begin_iterator{m_content};
             begin_iterator.m_content_idx = 0;
             return begin_iterator;
         }
 
-        rows_iterator end()
+        rows_t end()
         {
-            rows_iterator end_iterator{m_content};
+            rows_t end_iterator{m_content};
             end_iterator.m_content_idx = m_content.size();
             return end_iterator;
         }
 
-        bool operator==(const rows_iterator &other_iterator)
+        bool operator==(const rows_t &other_iterator)
         {
             return m_content_idx == other_iterator.m_content_idx;
         }
 
-        bool operator!=(const rows_iterator &other_iterator)
+        bool operator!=(const rows_t &other_iterator)
         {
             return !(*this == other_iterator);
         }
 
         reference operator*()
         {
-            m_rows.m_row = m_content[m_content_idx];
-            return m_rows;
+            m_row_element_iterator.set_row(m_content[m_content_idx]);
+            return m_row_element_iterator;
         }
 
-        rows_iterator & operator++()
+        rows_t & operator++()
         {
             m_content_idx++;
             return *this;
@@ -138,10 +146,11 @@ public:
 
     private:
         content_type &m_content;
-        rows_t m_rows;
+        row_element_iterator m_row_element_iterator;
         // TODO: Implement with pointer to std::vector<T>.
         size_t m_content_idx;
     };
+
 
     matrix(size_t row_size, size_t cols_size, T initial_value = T{})
         : m_rows_iterator{m_content},
@@ -164,12 +173,12 @@ public:
         return m_col_size;
     }
 
-    rows_iterator & rows()
+    rows_t & rows()
     {
         return m_rows_iterator;
     }
 
-    const rows_iterator & rows() const
+    const rows_t & rows() const
     {
 
     }
@@ -188,7 +197,7 @@ private:
     friend class matrix_tester;
 
     content_type m_content;
-    rows_iterator m_rows_iterator;
+    rows_t m_rows_iterator;
     size_t m_row_size;
     size_t m_col_size;
 };
