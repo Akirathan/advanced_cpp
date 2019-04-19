@@ -40,6 +40,8 @@ static void check_iterators_neq(IteratorType1 iterator_1, IteratorType2 iterator
     BOOST_TEST(neq);
 }
 
+BOOST_AUTO_TEST_SUITE(rows_iterator)
+
 BOOST_AUTO_TEST_CASE(matrix_init)
 {
     matrix<int> matrix{3, 3};
@@ -56,10 +58,9 @@ BOOST_AUTO_TEST_CASE(matrix_rows_iterator_init)
 BOOST_AUTO_TEST_CASE(matrix_rows_iterator_simple_increment)
 {
     matrix<int> matrix{3, 3};
-    const auto rows_iterator_begin = matrix.rows().begin();
     auto rows_iterator = matrix.rows().begin();
     ++rows_iterator;
-    check_iterators_neq(rows_iterator_begin, rows_iterator);
+    check_iterators_neq(matrix.rows().begin(), rows_iterator);
 }
 
 BOOST_AUTO_TEST_CASE(matrix_rows_iterator_at_end)
@@ -77,4 +78,82 @@ BOOST_AUTO_TEST_CASE(matrix_rows_iterator_dereference)
     *first_row_iterator = 42;
     matrix_tester::check_matrix_element(matrix, 0, 0, 42);
 }
+
+BOOST_AUTO_TEST_CASE(matrix_rows_iterator_dereference_after_increment)
+{
+    matrix<int> matrix{3, 3};
+    auto row_iterator = matrix.rows().begin();
+    ++row_iterator;
+    auto row_element_iterator = *row_iterator;
+    ++row_element_iterator;
+    *row_element_iterator = 42;
+    matrix_tester::check_matrix_element(matrix, 1, 1, 42);
+}
+
+BOOST_AUTO_TEST_CASE(count_iterations_over_rows)
+{
+    matrix<int> m{3, 3};
+    size_t iterations_over_rows = 0;
+
+    for (auto rows_iterator = m.rows().begin(); rows_iterator != m.rows().end(); ++rows_iterator) {
+        iterations_over_rows++;
+    }
+
+    BOOST_TEST(iterations_over_rows == m.get_row_size());
+}
+
+BOOST_AUTO_TEST_CASE(count_iterations_over_row_element)
+{
+    matrix<int> m{3, 3};
+    size_t iterations_over_row_elements = 0;
+
+    auto row_element_it = *m.rows().begin();
+    for (auto elem_it = row_element_it.begin(); elem_it != row_element_it.end(); ++elem_it) {
+        iterations_over_row_elements++;
+    }
+
+    BOOST_TEST(iterations_over_row_elements == m.get_col_size());
+}
+
+BOOST_AUTO_TEST_CASE(assign_value_to_entire_row)
+{
+    matrix<int> m{3, 3};
+
+    auto row_element_it = *m.rows().begin();
+    for (auto elem_it = row_element_it.begin(); elem_it != row_element_it.end(); ++elem_it) {
+        *elem_it = 42;
+    }
+
+    for (auto elem_it = row_element_it.begin(); elem_it != row_element_it.end(); ++elem_it) {
+        BOOST_TEST(*elem_it == 42);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(assign_value_to_entire_matrix)
+{
+    using matrix_t = matrix<int>;
+
+    matrix_t m{3, 3};
+    int value = 1;
+    for (auto rows_iterator = m.rows().begin(); rows_iterator != m.rows().end(); ++rows_iterator) {
+        matrix_t::rows_t::reference row_element_iterator = *rows_iterator;
+        for (auto element_ptr = row_element_iterator.begin(); element_ptr != row_element_iterator.end(); ++element_ptr) {
+            matrix_t::rows_t::value_type::reference elem_ref = *element_ptr;
+            elem_ref = value;
+            value++;
+        }
+    }
+
+    value = 1;
+    for (auto rows_iterator = m.rows().begin(); rows_iterator != m.rows().end(); ++rows_iterator) {
+        matrix_t::rows_t::reference row_element_iterator = *rows_iterator;
+        for (auto elem_it = row_element_iterator.begin(); elem_it != row_element_iterator.end(); ++elem_it) {
+            matrix_t::rows_t::value_type::reference elem_ref = *elem_it;
+            BOOST_TEST(elem_ref == value);
+            value++;
+        }
+    }
+}
+
+BOOST_AUTO_TEST_SUITE_END() // rows_iterator
 
