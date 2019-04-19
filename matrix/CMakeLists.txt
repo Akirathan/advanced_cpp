@@ -13,12 +13,12 @@ set(SOURCES
         matrix.hpp
         )
 
-add_executable(matrix
-        ${SOURCES}
+add_executable(my_array
+        my_array.hpp
         main.cpp
         )
 
-target_link_libraries(matrix ${Boost_LIBRARIES})
+target_link_libraries(my_array ${Boost_LIBRARIES})
 
 include(unit_tests.cmake)
 
