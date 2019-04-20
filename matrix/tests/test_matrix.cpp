@@ -155,5 +155,22 @@ BOOST_AUTO_TEST_CASE(assign_value_to_entire_matrix)
     }
 }
 
+BOOST_AUTO_TEST_CASE(range_based_for_loop)
+{
+    matrix<int> m{3, 5};
+
+    for (auto &&row : m.rows()) {
+        for (auto &&row_element : row) {
+            row_element = 42;
+        }
+    }
+
+    for (auto &&row : m.rows()) {
+        for (auto &&row_element : row) {
+            BOOST_TEST(row_element == 42);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END() // rows_iterator
 
