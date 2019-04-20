@@ -174,3 +174,76 @@ BOOST_AUTO_TEST_CASE(range_based_for_loop)
 
 BOOST_AUTO_TEST_SUITE_END() // rows_iterator
 
+
+
+BOOST_AUTO_TEST_SUITE(cols_iterator)
+
+BOOST_AUTO_TEST_CASE(cols_iterator_init)
+{
+    matrix<int> matrix{3, 3};
+    auto cols_iterator = matrix.cols();
+    check_iterators_neq(cols_iterator.begin(), cols_iterator.end());
+}
+
+BOOST_AUTO_TEST_CASE(cols_iterator_simple_increment)
+{
+    matrix<int> matrix{3, 3};
+    auto cols_iterator = matrix.cols().begin();
+    ++cols_iterator;
+    check_iterators_neq(matrix.cols().begin(), cols_iterator);
+}
+
+BOOST_AUTO_TEST_CASE(cols_iterator_at_end)
+{
+    matrix<int> matrix{4, 1};
+    auto cols_iterator = matrix.cols().begin();
+    ++cols_iterator;
+    check_iterators_eq(cols_iterator, matrix.cols().end());
+}
+
+BOOST_AUTO_TEST_CASE(cols_iterator_dereference)
+{
+    matrix<int> matrix{3, 3};
+    auto first_col_iterator = *matrix.cols().begin();
+    *first_col_iterator = 42;
+    matrix_tester::check_matrix_element(matrix, 0, 0, 42);
+}
+
+BOOST_AUTO_TEST_CASE(cols_iterator_dereference_after_increment)
+{
+    matrix<int> matrix{3, 3};
+    auto cols_iterator = matrix.cols().begin();
+    ++cols_iterator;
+    auto col_element_iterator = *cols_iterator;
+    ++col_element_iterator;
+    *col_element_iterator = 42;
+    matrix_tester::check_matrix_element(matrix, 1, 1, 42);
+}
+
+BOOST_AUTO_TEST_CASE(count_iterations_over_cols)
+{
+    matrix<int> m{2, 4};
+    size_t iterations_over_cols = 0;
+
+    for (auto cols_iterator = m.cols().begin(); cols_iterator != m.cols().end(); ++cols_iterator) {
+        iterations_over_cols++;
+    }
+
+    BOOST_TEST(iterations_over_cols == m.get_col_size());
+}
+
+BOOST_AUTO_TEST_CASE(count_iterations_over_col_element)
+{
+    matrix<int> m{4, 5};
+    size_t iterations_over_col_elements = 0;
+
+    auto col_element_it = *m.cols().begin();
+    for (auto elem_it = col_element_it.begin(); elem_it != col_element_it.end(); ++elem_it) {
+        iterations_over_col_elements++;
+    }
+
+    BOOST_TEST(iterations_over_col_elements == m.get_row_size());
+}
+
+BOOST_AUTO_TEST_SUITE_END() // cols_iterator
+
