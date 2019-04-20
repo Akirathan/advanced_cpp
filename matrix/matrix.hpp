@@ -23,17 +23,120 @@ public:
     using reference = T&;
     using pointer = T*;
 
+    class cols_element_iterator;
     class cols_t;
-    class cols_iterator;
     class row_element_iterator;
     class rows_t;
 
-    class cols_t {
 
+    class cols_element_iterator {
+    public:
+        using value_type = T;
+        using reference = T&;
+        using pointer = T*;
+        using difference_type = std::ptrdiff_t;
+        using iterator_category = std::forward_iterator_tag;
+
+        explicit cols_element_iterator(content_type &content, size_t col_idx)
+            : m_content(content),
+            m_col_idx{col_idx},
+            m_row_idx{0}
+        {}
+
+        pointer begin()
+        {
+            return &m_content[0][m_col_idx];
+        }
+
+        pointer end()
+        {
+            size_t last_row_idx = m_content.size() - 1;
+            pointer end_pointer = &m_content[last_row_idx][m_col_idx];
+            ++end_pointer;
+            return end_pointer;
+        }
+
+        bool operator==(const cols_element_iterator &other_iterator)
+        {
+            return m_col_idx == other_iterator.m_col_idx && m_row_idx == other_iterator.m_row_idx;
+        }
+
+        bool operator!=(const cols_element_iterator &other_iterator)
+        {
+            return !(*this == other_iterator);
+        }
+
+        reference operator*()
+        {
+            assert(is_index_in_bounds(m_content, m_row_idx, m_col_idx));
+            return m_content[m_row_idx][m_col_idx];
+        }
+
+        cols_element_iterator & operator++()
+        {
+            m_row_idx++;
+            return *this;
+        }
+
+    private:
+        content_type &m_content;
+        const size_t m_col_idx;
+        size_t m_row_idx;
     };
 
-    class cols_iterator {
+    class cols_t {
+    public:
+        using value_type = cols_element_iterator;
+        using reference = cols_element_iterator&;
+        using pointer = cols_element_iterator*;
+        using difference_type = std::ptrdiff_t; // TODO: Neco jinyho?
+        using iterator_category = std::forward_iterator_tag;
 
+        explicit cols_t(content_type &content)
+            : m_content(content),
+            m_col_idx{0}
+        {}
+
+        cols_t begin()
+        {
+            cols_t begin_iterator{m_content};
+            begin_iterator.m_col_idx = 0;
+            return begin_iterator;
+        }
+
+        cols_t end()
+        {
+            cols_t end_iterator{m_content};
+            end_iterator.m_col_idx = m_content[0].size();
+            return end_iterator;
+        }
+
+        bool operator==(const cols_t &other_iterator)
+        {
+            return m_col_idx == other_iterator.m_col_idx;
+        }
+
+        bool operator!=(const cols_t &other_iterator)
+        {
+            return !(*this == other_iterator);
+        }
+
+        // TODO: Implement with reference?
+        cols_element_iterator operator*()
+        {
+            cols_element_iterator element_iterator{m_content, m_col_idx};
+            return element_iterator;
+        }
+
+        cols_t & operator++()
+        {
+            m_col_idx++;
+            return *this;
+        }
+
+    private:
+        content_type &m_content;
+        size_t m_col_idx;
     };
 
 
@@ -157,6 +260,7 @@ public:
 
     matrix(size_t row_size, size_t cols_size, T initial_value = T{})
         : m_rows_iterator{m_content},
+        m_cols_iterator{m_content},
         m_row_size{row_size},
         m_col_size{cols_size}
     {
@@ -188,7 +292,7 @@ public:
 
     cols_t & cols()
     {
-
+        return m_cols_iterator;
     }
 
     const cols_t & cols() const
@@ -201,8 +305,16 @@ private:
 
     content_type m_content;
     rows_t m_rows_iterator;
+    cols_t m_cols_iterator;
     size_t m_row_size;
     size_t m_col_size;
+
+    static bool is_index_in_bounds(const content_type &content, size_t i, size_t j)
+    {
+        size_t max_row_idx = content.size() - 1;
+        size_t max_col_idx = content[0].size() - 1;
+        return i >= 0 && i <= max_row_idx && j >= 0 && j <= max_col_idx;
+    }
 };
 
 #endif //MATRIX_MATRIX_HPP
