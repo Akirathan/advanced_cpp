@@ -40,6 +40,7 @@ static void check_iterators_neq(IteratorType1 iterator_1, IteratorType2 iterator
     BOOST_TEST(neq);
 }
 
+// ================================================================================== //
 BOOST_AUTO_TEST_SUITE(rows_iterator)
 
 BOOST_AUTO_TEST_CASE(matrix_init)
@@ -174,7 +175,7 @@ BOOST_AUTO_TEST_CASE(range_based_for_loop)
 
 BOOST_AUTO_TEST_SUITE_END() // rows_iterator
 
-
+// ================================================================================== //
 
 BOOST_AUTO_TEST_SUITE(cols_iterator)
 
@@ -287,4 +288,51 @@ BOOST_AUTO_TEST_CASE(assign_value_to_entire_matrix)
 }
 
 BOOST_AUTO_TEST_SUITE_END() // cols_iterator
+
+// ================================================================================== //
+
+BOOST_AUTO_TEST_SUITE(both_iterators)
+
+
+BOOST_AUTO_TEST_SUITE_END() // both_iterators
+
+// ================================================================================== //
+BOOST_AUTO_TEST_SUITE(matrix_general)
+
+BOOST_AUTO_TEST_CASE(square_bracket_operator_one_element)
+{
+    matrix<int> m{4, 6};
+    m[1][1] = 42;
+    matrix_tester::check_matrix_element(m, 1, 1, 42);
+}
+
+BOOST_AUTO_TEST_CASE(square_bracket_operator_entire_matrix)
+{
+    const size_t rows = 5;
+    const size_t cols = 6;
+    matrix<int> m{rows, cols};
+
+    for (size_t i = 0; i < rows; ++i) {
+        for (size_t j = 0; j < cols; ++j) {
+            m[i][j] = 42;
+        }
+    }
+
+    for (size_t i = 0; i < rows; ++i) {
+        for (size_t j = 0; j < cols; ++j) {
+            matrix_tester::check_matrix_element(m, i, j, 42);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(square_bracket_operator_on_rows)
+{
+    matrix<int> m{4, 6};
+    m[3][2] = 42;
+
+    BOOST_TEST(m[3][2] == m.rows()[3][2]);
+    BOOST_TEST(m[3][2] == 42);
+}
+
+BOOST_AUTO_TEST_SUITE_END() // matrix_general
 
