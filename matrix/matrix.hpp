@@ -73,6 +73,16 @@ public:
             return !(*this == other_iterator);
         }
 
+        reference operator[](size_t row_idx)
+        {
+            if (!is_index_in_bounds(m_content, row_idx, m_col_idx)) {
+                // TODO: out_of_bounds exception
+                throw std::exception{};
+            }
+
+            return m_content[row_idx][m_col_idx];
+        }
+
         reference operator*()
         {
             assert(is_index_in_bounds(m_content, m_row_idx, m_col_idx));
@@ -127,6 +137,12 @@ public:
         bool operator!=(const cols_t &other_iterator)
         {
             return !(*this == other_iterator);
+        }
+
+        reference operator[](size_t col_idx)
+        {
+            m_element_iterator.set_column(col_idx);
+            return m_element_iterator;
         }
 
         reference operator*()
