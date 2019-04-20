@@ -43,17 +43,24 @@ public:
             m_row_idx{0}
         {}
 
-        pointer begin()
+        void set_column(size_t col_idx)
         {
-            return &m_content[0][m_col_idx];
+            m_col_idx = col_idx;
+            m_row_idx = 0;
         }
 
-        pointer end()
+        cols_element_iterator begin()
         {
-            size_t last_row_idx = m_content.size() - 1;
-            pointer end_pointer = &m_content[last_row_idx][m_col_idx];
-            ++end_pointer;
-            return end_pointer;
+            cols_element_iterator begin_iterator{m_content, m_col_idx};
+            begin_iterator.m_row_idx = 0;
+            return begin_iterator;
+        }
+
+        cols_element_iterator end()
+        {
+            cols_element_iterator end_iterator{m_content, m_col_idx};
+            end_iterator.m_row_idx = m_content.size();
+            return end_iterator;
         }
 
         bool operator==(const cols_element_iterator &other_iterator)
@@ -80,7 +87,7 @@ public:
 
     private:
         content_type &m_content;
-        const size_t m_col_idx;
+        size_t m_col_idx;
         size_t m_row_idx;
     };
 
@@ -94,6 +101,7 @@ public:
 
         explicit cols_t(content_type &content)
             : m_content(content),
+            m_element_iterator{content, 0},
             m_col_idx{0}
         {}
 
@@ -121,11 +129,10 @@ public:
             return !(*this == other_iterator);
         }
 
-        // TODO: Implement with reference?
-        cols_element_iterator operator*()
+        reference operator*()
         {
-            cols_element_iterator element_iterator{m_content, m_col_idx};
-            return element_iterator;
+            m_element_iterator.set_column(m_col_idx);
+            return m_element_iterator;
         }
 
         cols_t & operator++()
@@ -136,6 +143,7 @@ public:
 
     private:
         content_type &m_content;
+        cols_element_iterator m_element_iterator;
         size_t m_col_idx;
     };
 
