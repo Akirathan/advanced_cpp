@@ -271,9 +271,22 @@ public:
         m_row_size{row_size},
         m_col_size{cols_size}
     {
-        m_content.resize(row_size);
-        for (auto &&row : m_content) {
-            row.resize(cols_size, initial_value);
+        resize_content(row_size, cols_size, initial_value);
+    }
+
+    matrix<T> & operator=(const matrix<T> &other_matrix)
+    {
+        const size_t new_row_size = other_matrix.m_content.size();
+        const size_t new_cols_size = other_matrix.m_content[0].size();
+
+        m_row_size = new_row_size;
+        m_col_size = new_cols_size;
+        resize_content(new_row_size, new_cols_size);
+
+        for (size_t i = 0; i < new_row_size; ++i) {
+            for (size_t j = 0; j < new_cols_size; ++j) {
+                m_content[i][j] = other_matrix.m_content[i][j];
+            }
         }
     }
 
@@ -315,6 +328,14 @@ private:
     cols_t m_cols_iterator;
     size_t m_row_size;
     size_t m_col_size;
+
+    void resize_content(size_t row_size, size_t col_size, T initial_value = T{})
+    {
+        m_content.resize(row_size);
+        for (auto &&row : m_content) {
+            row.resize(col_size, initial_value);
+        }
+    }
 
     static bool is_index_in_bounds(const content_type &content, size_t i, size_t j)
     {
