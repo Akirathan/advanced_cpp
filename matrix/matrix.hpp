@@ -204,7 +204,7 @@ public:
     public:
         using value_type = row_element_iterator;
         using reference = row_element_iterator&;
-        using pointer = std::vector<T> *;
+        using pointer = std::vector<T> *; // TODO: Fix
         using difference_type = std::ptrdiff_t;
         using iterator_category = std::forward_iterator_tag;
 
@@ -253,7 +253,6 @@ public:
     private:
         content_type &m_content;
         row_element_iterator m_row_element_iterator;
-        // TODO: Implement with pointer to std::vector<T>.
         std::vector<T> *m_current_row;
     };
 
