@@ -189,6 +189,12 @@ public:
             return !(*this == other_iterator);
         }
 
+        reference operator[](size_t idx)
+        {
+            assert(m_row);
+            return *(m_row->data() + idx);
+        }
+
         reference operator*()
         {
             return *m_current_elem;
@@ -224,14 +230,14 @@ public:
         rows_t begin()
         {
             rows_t begin_iterator{m_content};
-            begin_iterator.m_current_row = m_content.data();
+            begin_iterator.m_current_row = get_first_row();
             return begin_iterator;
         }
 
         rows_t end()
         {
             rows_t end_iterator{m_content};
-            end_iterator.m_current_row = m_content.data() + m_content.size();
+            end_iterator.m_current_row = get_first_row() + m_content.size();
             return end_iterator;
         }
 
@@ -243,6 +249,13 @@ public:
         bool operator!=(const rows_t &other_iterator)
         {
             return !(*this == other_iterator);
+        }
+
+        reference operator[](size_t row_idx)
+        {
+            pointer row = get_first_row() + row_idx;
+            m_row_element_iterator.set_row(row);
+            return m_row_element_iterator;
         }
 
         reference operator*()
@@ -262,6 +275,11 @@ public:
         content_type &m_content;
         row_element_iterator m_row_element_iterator;
         std::vector<T> *m_current_row;
+
+        pointer get_first_row()
+        {
+            return m_content.data();
+        }
     };
 
 
@@ -288,6 +306,14 @@ public:
                 m_content[i][j] = other_matrix.m_content[i][j];
             }
         }
+    }
+
+    row_element_iterator operator[](size_t row_idx)
+    {
+        row_element_iterator element_iterator;
+        std::vector<T> *row = &m_content[row_idx];
+        element_iterator.set_row(row);
+        return element_iterator;
     }
 
     size_t get_row_size() const
