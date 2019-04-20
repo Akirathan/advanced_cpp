@@ -334,5 +334,14 @@ BOOST_AUTO_TEST_CASE(square_bracket_operator_on_rows)
     BOOST_TEST(m[3][2] == 42);
 }
 
+BOOST_AUTO_TEST_CASE(square_bracket_operator_on_cols)
+{
+    matrix<int> m{4, 6};
+    m.cols()[3][2] = 42;
+
+    BOOST_TEST(m[2][3] == m.cols()[3][2]);
+    BOOST_TEST(m[2][3] == 42);
+}
+
 BOOST_AUTO_TEST_SUITE_END() // matrix_general
 
