@@ -12,6 +12,7 @@
 #include <cassert>
 #include <vector>
 #include <iterator>
+#include <boost/log/trivial.hpp>
 
 template <typename T>
 class matrix {
@@ -44,25 +45,27 @@ public:
         using difference_type = std::ptrdiff_t;
         using iterator_category = std::forward_iterator_tag;
 
-        row_element_iterator(std::vector<T> &row)
-            : m_row(row),
+        row_element_iterator()
+            : m_row{nullptr},
             m_current_elem{nullptr}
         {}
 
-        void set_row(std::vector<T> &row)
+        void set_row(std::vector<T> *row)
         {
             m_row = row;
-            m_current_elem = m_row.data();
+            m_current_elem = m_row->data();
         }
 
         pointer begin()
         {
-            return m_row.data();
+            assert(m_row);
+            return m_row->data();
         }
 
         pointer end()
         {
-            return m_row.data() + m_row.size();
+            assert(m_row);
+            return m_row->data() + m_row->size();
         }
 
         bool operator==(const row_element_iterator &other_iterator)
@@ -87,7 +90,7 @@ public:
         }
 
     private:
-        std::vector<T> &m_row;
+        std::vector<T> *m_row;
         T *m_current_elem;
     };
 
@@ -98,33 +101,32 @@ public:
     public:
         using value_type = row_element_iterator;
         using reference = row_element_iterator&;
-        using pointer = row_element_iterator*;
-        using difference_type = std::ptrdiff_t; // TODO: Jinej difference_type
+        using pointer = std::vector<T> *;
+        using difference_type = std::ptrdiff_t;
         using iterator_category = std::forward_iterator_tag;
 
         explicit rows_t(content_type &content)
                 : m_content{content},
-                  m_row_element_iterator{content[0]},
-                  m_content_idx{0}
+                  m_current_row{nullptr}
         { }
 
         rows_t begin()
         {
             rows_t begin_iterator{m_content};
-            begin_iterator.m_content_idx = 0;
+            begin_iterator.m_current_row = m_content.data();
             return begin_iterator;
         }
 
         rows_t end()
         {
             rows_t end_iterator{m_content};
-            end_iterator.m_content_idx = m_content.size();
+            end_iterator.m_current_row = m_content.data() + m_content.size();
             return end_iterator;
         }
 
         bool operator==(const rows_t &other_iterator)
         {
-            return m_content_idx == other_iterator.m_content_idx;
+            return m_current_row == other_iterator.m_current_row;
         }
 
         bool operator!=(const rows_t &other_iterator)
@@ -134,13 +136,14 @@ public:
 
         reference operator*()
         {
-            m_row_element_iterator.set_row(m_content[m_content_idx]);
+            m_row_element_iterator.set_row(m_current_row);
+            BOOST_LOG_TRIVIAL(debug) << "rows_t operator *, m_current_row = " << m_current_row;
             return m_row_element_iterator;
         }
 
         rows_t & operator++()
         {
-            m_content_idx++;
+            m_current_row++;
             return *this;
         }
 
@@ -148,7 +151,7 @@ public:
         content_type &m_content;
         row_element_iterator m_row_element_iterator;
         // TODO: Implement with pointer to std::vector<T>.
-        size_t m_content_idx;
+        std::vector<T> *m_current_row;
     };
 
 
