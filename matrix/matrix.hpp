@@ -25,16 +25,6 @@ class matrix {
     using content_type = std::vector<std::vector<T>>;
 
 public:
-    using value_type = T;
-    using reference = T&;
-    using pointer = T*;
-
-    class cols_element_iterator;
-    class cols_t;
-    class row_element_iterator;
-    class rows_t;
-
-
     class cols_element_iterator {
     public:
         using value_type = T;
@@ -279,7 +269,7 @@ public:
     public:
         using value_type = row_element_iterator;
         using reference = row_element_iterator&;
-        using pointer = std::vector<T> *; // TODO: Fix to row_element_iterator *?
+        using pointer = row_element_iterator *;
         using difference_type = std::ptrdiff_t;
         using iterator_category = std::forward_iterator_tag;
 
@@ -314,7 +304,7 @@ public:
 
         reference operator[](size_t row_idx)
         {
-            pointer row = get_first_row() + row_idx;
+            std::vector<T> *row = get_first_row() + row_idx;
             m_row_element_iterator.set_row(row);
             return m_row_element_iterator;
         }
@@ -325,7 +315,7 @@ public:
             return m_row_element_iterator;
         }
 
-        row_element_iterator * operator->()
+        pointer operator->()
         {
             m_row_element_iterator.set_row(m_current_row);
             return &m_row_element_iterator;
@@ -349,7 +339,7 @@ public:
         row_element_iterator m_row_element_iterator;
         std::vector<T> *m_current_row;
 
-        pointer get_first_row()
+        std::vector<T> * get_first_row()
         {
             return m_content.data();
         }
