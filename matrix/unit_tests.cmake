@@ -14,3 +14,4 @@ add_executable(du2test
         ${SOURCES}
         tests/du2test.cpp)
 
+target_link_libraries(du2test ${Boost_LIBRARIES})
