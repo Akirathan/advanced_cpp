@@ -373,6 +373,8 @@ public:
                 m_content[i][j] = other_matrix.m_content[i][j];
             }
         }
+
+        return *this;
     }
 
     row_element_iterator operator[](size_t row_idx)
