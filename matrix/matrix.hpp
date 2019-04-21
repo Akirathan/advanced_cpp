@@ -2,6 +2,12 @@
 #define MATRIX_MATRIX_HPP
 
 /**
+ * du2matrix.hpp
+ * Pavel Marek NPRG051 2018/2019
+ */
+
+
+/**
  * Various links:
  * - Assignment details: http://www.ksi.mff.cuni.cz/lectures/NPRG051/du/du-1819-2.pdf
  * - iterator trais: https://en.cppreference.com/w/cpp/iterator/iterator_traits
