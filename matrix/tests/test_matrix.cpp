@@ -24,6 +24,22 @@ public:
     {
         BOOST_TEST(matrix.m_content[i][j] == element);
     }
+
+    template <typename T>
+    static T get_matrix_element(const matrix<T> &matrix, size_t i, size_t j)
+    {
+        return matrix.m_content[i][j];
+    }
+};
+
+struct complex {
+    int re = 0;
+    int im = 0;
+
+    bool operator==(const complex &other)
+    {
+        return re == other.re && im == other.im;
+    }
 };
 
 template <typename IteratorType1, typename IteratorType2>
@@ -173,6 +189,63 @@ BOOST_AUTO_TEST_CASE(range_based_for_loop)
     }
 }
 
+BOOST_AUTO_TEST_CASE(std_for_each)
+{
+    using matrix_t = matrix<int>;
+    matrix_t m{4, 6};
+
+    int value = 1;
+    std::for_each(m.rows().begin(), m.rows().end(),
+              [&](matrix_t::rows_t::reference row)
+              {
+                  std::for_each(row.begin(), row.end(),
+                                [&](matrix_t::rows_t::value_type::reference el) {
+                                    el = value;
+                                    value++;
+                                });
+              });
+
+    value = 1;
+    std::for_each(m.rows().begin(), m.rows().end(),
+                  [&](matrix_t::rows_t::reference row)
+                  {
+                      std::for_each(row.begin(), row.end(),
+                                    [&](matrix_t::rows_t::value_type::reference el) {
+                                        BOOST_TEST(el == value);
+                                        value++;
+                                    });
+                  });
+}
+
+BOOST_AUTO_TEST_CASE(arrow_operator)
+{
+    matrix<complex> m{3, 6};
+    auto rows_it = m.rows().begin();
+    auto rows_elem_it = rows_it->begin();
+    (++rows_elem_it)->re = 2;
+    rows_elem_it->im = 3;
+
+    complex should_match{2, 3};
+    auto set_element = matrix_tester::get_matrix_element(m, 0, 1);
+    bool elem_eq = set_element == should_match;
+    BOOST_TEST(elem_eq);
+
+    (++rows_it)->begin()->re = 5;
+    set_element = matrix_tester::get_matrix_element(m, 1, 0);
+    BOOST_TEST(set_element.re == 5);
+}
+
+BOOST_AUTO_TEST_CASE(postfix_plus)
+{
+    matrix<int> m{4, 7};
+    auto it1 = m.cols()[0].begin();
+    // it2 still points to [0, 0]
+    auto it2 = it1++;
+    *it2 = 5;
+
+    matrix_tester::check_matrix_element(m, 0, 0, 5);
+}
+
 BOOST_AUTO_TEST_SUITE_END() // rows_iterator
 
 // ================================================================================== //
@@ -287,12 +360,96 @@ BOOST_AUTO_TEST_CASE(assign_value_to_entire_matrix)
     }
 }
 
+BOOST_AUTO_TEST_CASE(range_based_for_loop)
+{
+    matrix<int> m{3, 5};
+
+    for (auto &&col : m.cols()) {
+        for (auto &&col_element : col) {
+            col_element = 42;
+        }
+    }
+
+    for (auto &&col : m.cols()) {
+        for (auto &&col_element : col) {
+            BOOST_TEST(col_element == 42);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(std_for_each)
+{
+    using matrix_t = matrix<int>;
+    matrix_t m{4, 6};
+
+    int value = 1;
+    std::for_each(m.cols().begin(), m.cols().end(),
+                  [&](matrix_t::cols_t::reference col)
+                  {
+                      std::for_each(col.begin(), col.end(),
+                                    [&](matrix_t::cols_t::value_type::reference el) {
+                                        el = value;
+                                        value++;
+                                    });
+                  });
+
+    value = 1;
+    std::for_each(m.cols().begin(), m.cols().end(),
+                  [&](matrix_t::cols_t::reference col)
+                  {
+                      std::for_each(col.begin(), col.end(),
+                                    [&](matrix_t::cols_t::value_type::reference el) {
+                                        BOOST_TEST(el == value);
+                                        value++;
+                                    });
+                  });
+}
+
+BOOST_AUTO_TEST_CASE(arrow_operator)
+{
+    matrix<complex> m{3, 6};
+    auto cols_it = m.cols().begin();
+    auto cols_elem_it = cols_it->begin();
+    (++cols_elem_it)->re = 2;
+    cols_elem_it->im = 3;
+
+    complex should_match{2, 3};
+    auto set_element = matrix_tester::get_matrix_element(m, 1, 0);
+    bool elem_eq = set_element == should_match;
+    BOOST_TEST(elem_eq);
+
+    (++cols_it)->begin()->re = 5;
+    set_element = matrix_tester::get_matrix_element(m, 0, 1);
+    BOOST_TEST(set_element.re == 5);
+}
+
 BOOST_AUTO_TEST_SUITE_END() // cols_iterator
 
 // ================================================================================== //
 
 BOOST_AUTO_TEST_SUITE(both_iterators)
 
+BOOST_AUTO_TEST_CASE(postfix_increment_operator)
+{
+    matrix<int> m{4, 6};
+
+    auto cols_iter = m.cols().begin();
+    cols_iter++;
+
+    auto other_cols_iter = m.cols().begin();
+    ++other_cols_iter;
+
+    check_iterators_eq(cols_iter, other_cols_iter);
+
+
+    auto rows_iter = m.rows().begin();
+    rows_iter++;
+
+    auto other_rows_iter = m.rows().begin();
+    ++other_rows_iter;
+
+    check_iterators_eq(rows_iter, other_rows_iter);
+}
 
 BOOST_AUTO_TEST_SUITE_END() // both_iterators
 
