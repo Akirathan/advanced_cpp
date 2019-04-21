@@ -85,14 +85,27 @@ public:
 
         reference operator*()
         {
+            // TODO: Remove this assert?
             assert(is_index_in_bounds(m_content, m_row_idx, m_col_idx));
             return m_content[m_row_idx][m_col_idx];
+        }
+
+        pointer operator->()
+        {
+            return &m_content[m_row_idx][m_col_idx];
         }
 
         cols_element_iterator & operator++()
         {
             m_row_idx++;
             return *this;
+        }
+
+        cols_element_iterator operator++(int)
+        {
+            auto old_copy = *this;
+            m_row_idx++;
+            return old_copy;
         }
 
     private:
@@ -151,10 +164,23 @@ public:
             return m_element_iterator;
         }
 
+        pointer operator->()
+        {
+            m_element_iterator.set_column(m_col_idx);
+            return &m_element_iterator;
+        }
+
         cols_t & operator++()
         {
             m_col_idx++;
             return *this;
+        }
+
+        cols_t operator++(int)
+        {
+            cols_t old_copy = *this;
+            m_col_idx++;
+            return old_copy;
         }
 
     private:
@@ -216,10 +242,22 @@ public:
             return *m_current_elem;
         }
 
+        pointer operator->()
+        {
+            return m_current_elem;
+        }
+
         row_element_iterator & operator++()
         {
             m_current_elem++;
             return *this;
+        }
+
+        row_element_iterator operator++(int)
+        {
+            auto old_copy = *this;
+            m_current_elem++;
+            return old_copy;
         }
 
     private:
@@ -234,7 +272,7 @@ public:
     public:
         using value_type = row_element_iterator;
         using reference = row_element_iterator&;
-        using pointer = std::vector<T> *; // TODO: Fix
+        using pointer = std::vector<T> *; // TODO: Fix to row_element_iterator *?
         using difference_type = std::ptrdiff_t;
         using iterator_category = std::forward_iterator_tag;
 
@@ -281,10 +319,23 @@ public:
             return m_row_element_iterator;
         }
 
+        row_element_iterator * operator->()
+        {
+            m_row_element_iterator.set_row(m_current_row);
+            return &m_row_element_iterator;
+        }
+
         rows_t & operator++()
         {
             m_current_row++;
             return *this;
+        }
+
+        rows_t operator++(int)
+        {
+            auto old_copy = *this;
+            m_current_row++;
+            return old_copy;
         }
 
     private:
