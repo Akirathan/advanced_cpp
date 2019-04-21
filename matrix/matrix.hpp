@@ -315,7 +315,6 @@ public:
         reference operator*()
         {
             m_row_element_iterator.set_row(m_current_row);
-            BOOST_LOG_TRIVIAL(debug) << "rows_t operator *, m_current_row = " << m_current_row;
             return m_row_element_iterator;
         }
 
