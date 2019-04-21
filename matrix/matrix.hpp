@@ -365,6 +365,16 @@ public:
         resize_content(row_size, cols_size, initial_value);
     }
 
+    matrix(const matrix<T> &other_matrix)
+        : m_content(other_matrix.m_content),
+        m_rows_iterator{m_content},
+        m_cols_iterator{m_content},
+        m_row_size{other_matrix.m_row_size},
+        m_col_size{other_matrix.m_col_size}
+    {
+
+    }
+
     matrix<T> & operator=(const matrix<T> &other_matrix)
     {
         const size_t new_row_size = other_matrix.m_content.size();
