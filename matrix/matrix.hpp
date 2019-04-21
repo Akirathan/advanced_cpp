@@ -71,7 +71,8 @@ public:
 
         bool operator==(const cols_element_iterator &other_iterator)
         {
-            return m_col_idx == other_iterator.m_col_idx && m_row_idx == other_iterator.m_row_idx;
+            return m_col_idx == other_iterator.m_col_idx && m_row_idx == other_iterator.m_row_idx
+                && &m_content == &other_iterator.m_content;
         }
 
         bool operator!=(const cols_element_iterator &other_iterator)
@@ -150,7 +151,7 @@ public:
 
         bool operator==(const cols_t &other_iterator)
         {
-            return m_col_idx == other_iterator.m_col_idx;
+            return m_col_idx == other_iterator.m_col_idx && &m_content == &other_iterator.m_content;
         }
 
         bool operator!=(const cols_t &other_iterator)
@@ -229,7 +230,7 @@ public:
 
         bool operator==(const row_element_iterator &other_iterator)
         {
-            return m_current_elem == other_iterator.m_current_elem;
+            return m_current_elem == other_iterator.m_current_elem && m_row == other_iterator.m_row;
         }
 
         bool operator!=(const row_element_iterator &other_iterator)
