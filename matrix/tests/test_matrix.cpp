@@ -500,5 +500,46 @@ BOOST_AUTO_TEST_CASE(square_bracket_operator_on_cols)
     BOOST_TEST(m[2][3] == 42);
 }
 
+BOOST_AUTO_TEST_CASE(use_iterators_on_copied_matrix)
+{
+    using matrix_t = matrix<int>;
+    matrix_t m1{3, 5};
+
+    // Assign 42 to first row.
+    auto first_row_begin_it = m1.rows()[0].begin();
+    auto first_row_end_it = m1.rows()[0].end();
+    std::for_each(first_row_begin_it, first_row_end_it, [](int &elem){
+        elem = 42;
+    });
+
+
+    // Assign 42 to first column through m2 iteratos.
+    matrix_t m2 = m1; // copy-initialization --> copy constructor is called
+    auto first_col_begin_it = m2.cols()[0].begin();
+    auto first_col_end_it = m2.cols()[0].end();
+    std::for_each(first_col_begin_it, first_col_end_it, [](int &elem) {
+        elem = 42;
+    });
+
+
+    // Check first row of m2.
+    for (size_t j = 0; j < m2.get_col_size(); ++j) {
+        matrix_tester::check_matrix_element(m2, 0, j, 42);
+    }
+    // Check first column of m2.
+    for (size_t i = 0; i < m2.get_row_size(); ++i) {
+        matrix_tester::check_matrix_element(m2, i, 0, 42);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(iterators_of_copied_matrix_are_not_equal_to_original_iteratos)
+{
+    matrix<int> m1{4, 6};
+    matrix<int> m2 = m1;
+    
+    check_iterators_neq(m1.rows().begin(), m2.rows().begin());
+    check_iterators_neq(m1.cols().begin(), m2.cols().begin());
+}
+
 BOOST_AUTO_TEST_SUITE_END() // matrix_general
 
