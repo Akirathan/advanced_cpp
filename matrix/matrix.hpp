@@ -72,18 +72,11 @@ public:
 
         reference operator[](size_t row_idx)
         {
-            if (!is_index_in_bounds(m_content, row_idx, m_col_idx)) {
-                // TODO: out_of_bounds exception
-                throw std::exception{};
-            }
-
             return m_content[row_idx][m_col_idx];
         }
 
         reference operator*()
         {
-            // TODO: Remove this assert?
-            assert(is_index_in_bounds(m_content, m_row_idx, m_col_idx));
             return m_content[m_row_idx][m_col_idx];
         }
 
