@@ -1,5 +1,5 @@
-#ifndef MATRIX_MATRIX_HPP
-#define MATRIX_MATRIX_HPP
+#ifndef MATRIX_HPP
+#define MATRIX_HPP
 
 /**
  * du2matrix.hpp
@@ -18,22 +18,25 @@
 #include <cassert>
 #include <vector>
 #include <iterator>
-#include <boost/log/trivial.hpp>
 
 template <typename T>
 class matrix {
     using content_type = std::vector<std::vector<T>>;
 
 public:
-    class cols_element_iterator {
+    class iterator_base {
+    public:
+        using difference_type = std::ptrdiff_t;
+        using iterator_category = std::forward_iterator_tag;
+    };
+
+    class cols_element_iterator : public iterator_base {
     public:
         using value_type = T;
         using reference = T&;
         using pointer = T*;
-        using difference_type = std::ptrdiff_t;
-        using iterator_category = std::forward_iterator_tag;
 
-        explicit cols_element_iterator(content_type &content, size_t col_idx)
+        cols_element_iterator(content_type &content, size_t col_idx)
             : m_content(content),
             m_col_idx{col_idx},
             m_row_idx{0}
@@ -57,6 +60,11 @@ public:
             cols_element_iterator end_iterator{m_content, m_col_idx};
             end_iterator.m_row_idx = m_content.size();
             return end_iterator;
+        }
+
+        size_t size() const
+        {
+            return m_content[0].size();
         }
 
         bool operator==(const cols_element_iterator &other_iterator)
@@ -104,13 +112,11 @@ public:
         size_t m_row_idx;
     };
 
-    class cols_t {
+    class cols_t : public iterator_base {
     public:
         using value_type = cols_element_iterator;
         using reference = cols_element_iterator&;
         using pointer = cols_element_iterator*;
-        using difference_type = std::ptrdiff_t; // TODO: Neco jinyho?
-        using iterator_category = std::forward_iterator_tag;
 
         explicit cols_t(content_type &content)
             : m_content(content),
@@ -130,6 +136,11 @@ public:
             cols_t end_iterator{m_content};
             end_iterator.m_col_idx = m_content[0].size();
             return end_iterator;
+        }
+
+        size_t size() const
+        {
+            return m_content[0].size();
         }
 
         bool operator==(const cols_t &other_iterator)
@@ -180,13 +191,11 @@ public:
     };
 
 
-    class row_element_iterator {
+    class row_element_iterator : public iterator_base {
     public:
         using value_type = T;
         using reference = T&;
         using pointer = T*;
-        using difference_type = std::ptrdiff_t;
-        using iterator_category = std::forward_iterator_tag;
 
         row_element_iterator()
             : m_row{nullptr},
@@ -209,6 +218,12 @@ public:
         {
             assert(m_row);
             return m_row->data() + m_row->size();
+        }
+
+        size_t size() const
+        {
+            assert(m_row);
+            return m_row->size();
         }
 
         bool operator==(const row_element_iterator &other_iterator)
@@ -255,16 +270,11 @@ public:
         T *m_current_elem;
     };
 
-    /**
-     * Entire row iterator.
-     */
-    class rows_t {
+    class rows_t : public iterator_base {
     public:
         using value_type = row_element_iterator;
         using reference = row_element_iterator&;
         using pointer = row_element_iterator *;
-        using difference_type = std::ptrdiff_t;
-        using iterator_category = std::forward_iterator_tag;
 
         explicit rows_t(content_type &content)
                 : m_content{content},
@@ -283,6 +293,11 @@ public:
             rows_t end_iterator{m_content};
             end_iterator.m_current_row = get_first_row() + m_content.size();
             return end_iterator;
+        }
+
+        size_t size() const
+        {
+            return m_content.size();
         }
 
         bool operator==(const rows_t &other_iterator)
@@ -354,9 +369,15 @@ public:
         m_cols_iterator{m_content},
         m_row_size{other_matrix.m_row_size},
         m_col_size{other_matrix.m_col_size}
-    {
+    {}
 
-    }
+    matrix(matrix<T> &&other_matrix)
+        : m_content(std::move(other_matrix.m_content)),
+        m_rows_iterator{m_content},
+        m_cols_iterator{m_content},
+        m_row_size{other_matrix.m_row_size},
+        m_col_size{other_matrix.m_col_size}
+    {}
 
     matrix<T> & operator=(const matrix<T> &other_matrix)
     {
@@ -367,11 +388,7 @@ public:
         m_col_size = new_cols_size;
         resize_content(new_row_size, new_cols_size);
 
-        for (size_t i = 0; i < new_row_size; ++i) {
-            for (size_t j = 0; j < new_cols_size; ++j) {
-                m_content[i][j] = other_matrix.m_content[i][j];
-            }
-        }
+        copy_content(other_matrix.m_content);
 
         return *this;
     }
@@ -399,19 +416,9 @@ public:
         return m_rows_iterator;
     }
 
-    const rows_t & rows() const
-    {
-
-    }
-
     cols_t & cols()
     {
         return m_cols_iterator;
-    }
-
-    const cols_t & cols() const
-    {
-
     }
 
 private:
@@ -431,12 +438,15 @@ private:
         }
     }
 
-    static bool is_index_in_bounds(const content_type &content, size_t i, size_t j)
+    void copy_content(const content_type &content)
     {
-        size_t max_row_idx = content.size() - 1;
-        size_t max_col_idx = content[0].size() - 1;
-        return i >= 0 && i <= max_row_idx && j >= 0 && j <= max_col_idx;
+        for (size_t i = 0; i < m_row_size; ++i) {
+            for (size_t j = 0; j < m_col_size; ++j) {
+                m_content[i][j] = content[i][j];
+            }
+        }
     }
+
 };
 
-#endif //MATRIX_MATRIX_HPP
+#endif //MATRIX_HPP
