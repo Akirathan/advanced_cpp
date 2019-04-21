@@ -1,10 +1,8 @@
-#ifndef MATRIX_HPP
-#define MATRIX_HPP
+// du2matrix.hpp
+// Pavel Marek NPRG051 2018/2019
 
-/**
- * du2matrix.hpp
- * Pavel Marek NPRG051 2018/2019
- */
+#ifndef MATRIX_HPP_
+#define MATRIX_HPP_
 
 
 /**
@@ -449,4 +447,4 @@ private:
 
 };
 
-#endif //MATRIX_HPP
+#endif //MATRIX_HPP_
