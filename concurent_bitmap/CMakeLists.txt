@@ -6,16 +6,18 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O2")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g ")
 
+
 add_compile_definitions("BOOST_ALL_DYN_LINK")
 find_package(Boost COMPONENTS log system unit_test_framework REQUIRED)
+include_directories(${Boost_INCLUDE_DIR})
 
 set(SOURCES
-        concurent_bitmap.hpp
-		concurent_bitmap.cpp
-		main.cpp
+		concurrent_bitmap.h
+		concurrent_bitmap.cpp
         )
 
 add_executable(concurent_bitmap
+		main.cpp
         ${SOURCES}
         )
 
