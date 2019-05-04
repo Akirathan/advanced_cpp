@@ -2,11 +2,10 @@
 // Pavel Marek NPRG051 2018/2019
 
 #include <cstdint>
-#include <cmath>
+#include <cassert>
 #include <array>
-#include <vector>
+#include <atomic>
 #include <mutex>
-#include <boost/log/trivial.hpp>
 
 /**
  * We need this function, because std::pow is not constexpr.
