@@ -114,7 +114,7 @@ private:
                     m_children[idx] = m_bitmap.create_bitmap_node(next_from_idx, next_to_idx);
                 }
             }
-            m_children[idx].load()->set(key, value);
+            m_children[idx]->set(key, value);
         }
 
         value_type get(key_type key) const override
@@ -124,13 +124,13 @@ private:
                 return false;
             }
             else {
-                return m_children[idx].load()->get(key);
+                return m_children[idx]->get(key);
             }
         }
 
     private:
         std::mutex m_mtx;
-        std::array<std::atomic<i_bitmap_node *>, array_size> m_children;
+        std::array<i_bitmap_node *, array_size> m_children;
     };
 
     template <std::size_t array_size>
