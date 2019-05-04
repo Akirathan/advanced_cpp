@@ -55,7 +55,7 @@ private:
     static constexpr std::size_t l0_array_size = const_pow(2, l0_bits);
     static constexpr std::size_t l1_array_size = const_pow(2, l1_bits);
     static constexpr std::size_t l2_array_size = const_pow(2, l2_bits);
-    static constexpr std::size_t leaf_block_array_size = const_pow(2, leaf_block_bits + 3);
+    static constexpr std::size_t leaf_block_array_size = const_pow(2, leaf_block_bits);
 
     class i_bitmap_node {
     public:
