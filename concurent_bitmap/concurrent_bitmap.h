@@ -1,3 +1,6 @@
+// concurrent_bitmap.h
+// Pavel Marek NPRG051 2018/2019
+
 #include <cstdint>
 #include <cmath>
 #include <array>
@@ -26,9 +29,6 @@ public:
 
     concurrent_bitmap()
         : m_root{*this, l0_bit_range.first, l0_bit_range.second}
-    {}
-
-    ~concurrent_bitmap()
     {}
 
     value_type get(key_type key) const
@@ -141,9 +141,6 @@ private:
             m_data{}
         {}
 
-        ~bitmap_leaf_node() override
-        {}
-
         void set(key_type key, value_type value) override
         {
             std::size_t byte_idx = get_index_from_key(key);
@@ -202,6 +199,8 @@ private:
 
     std::pair<std::size_t, std::size_t> get_next_bit_indexes(std::size_t bit_idx_from, std::size_t bit_idx_to) const
     {
+        assert(l0_bit_range.first <= bit_idx_from && bit_idx_to <= l2_bit_range.second);
+
         if (are_indexes_in_bitrange(l0_bit_range, bit_idx_from, bit_idx_to)) {
             return l1_bit_range;
         }
@@ -211,13 +210,15 @@ private:
         else if (are_indexes_in_bitrange(l2_bit_range, bit_idx_from, bit_idx_to)) {
             return leaf_bit_range;
         }
-
-        // Unreachable code.
-        assert(false);
+        else {
+            return std::make_pair(0, 0);
+        }
     }
 
     i_bitmap_node * create_bitmap_node(std::size_t bit_idx_from, std::size_t bit_idx_to) const
     {
+        assert(l1_bit_range.first <= bit_idx_from && bit_idx_to <= leaf_bit_range.second);
+
         if (are_indexes_in_bitrange(l1_bit_range, bit_idx_from, bit_idx_to)) {
             return new bitmap_node<l1_array_size>{*this, bit_idx_from, bit_idx_to};
         }
@@ -227,9 +228,9 @@ private:
         else if (are_indexes_in_bitrange(leaf_bit_range, bit_idx_from, bit_idx_to)) {
             return new bitmap_leaf_node<leaf_block_array_size>{*this, bit_idx_from, bit_idx_to};
         }
-
-        // Unreachable code.
-        assert(false);
+        else {
+            return nullptr;
+        }
     }
 
     bool are_indexes_in_bitrange(const bit_range_t &bitrange, std::size_t idx_from, std::size_t idx_to) const
