@@ -2,6 +2,7 @@
 #include <cmath>
 #include <array>
 #include <vector>
+#include <mutex>
 #include <boost/log/trivial.hpp>
 
 /**
@@ -96,6 +97,9 @@ private:
     using l0_array_t = std::array<l1_array_t *, l0_array_size>;
 
     l0_array_t m_l0_array;
+    std::mutex l1_mtx;
+    std::mutex l2_mtx;
+    std::mutex leaf_mtx;
 
 
     void set_into_l0(key_type key, value_type value)
@@ -103,6 +107,7 @@ private:
         std::size_t l0_idx = get_index_to_l0(key);
         if (m_l0_array[l0_idx] == nullptr) {
             BOOST_LOG_TRIVIAL(debug) << "Creating new L1 array at l0_idx=" << l0_idx;
+            std::lock_guard<std::mutex> lock{l1_mtx};
             m_l0_array[l0_idx] = new l1_array_t{};
             m_l0_array[l0_idx]->fill(nullptr); // TODO: Is this necessary?
         }
@@ -114,6 +119,7 @@ private:
         std::size_t l1_idx = get_index_to_l1(key);
         if (l1_array[l1_idx] == nullptr) {
             BOOST_LOG_TRIVIAL(debug) << "Creating new L2 array at l1_idx=" << l1_idx;
+            std::lock_guard<std::mutex> lock{l2_mtx};
             l1_array[l1_idx] = new l2_array_t{};
             l1_array[l1_idx]->fill(nullptr); // TODO: Is this necessary?
         }
@@ -125,6 +131,7 @@ private:
         std::size_t l2_idx = get_index_to_l2(key);
         if (l2_array[l2_idx] == nullptr) {
             BOOST_LOG_TRIVIAL(debug) << "Creating new leaf block at l2_idx=" << l2_idx;
+            std::lock_guard<std::mutex> lock{leaf_mtx};
             l2_array[l2_idx] = new leaf_block_t{};
             l2_array[l2_idx]->fill(0); // TODO: Is this necessary?
         }
