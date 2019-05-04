@@ -75,7 +75,7 @@ private:
 
         std::size_t get_index_from_key(key_type key) const
         {
-            key_type mask = 1 << (m_bit_idx_to - m_bit_idx_from);
+            key_type mask = static_cast<key_type>(1 << (m_bit_idx_to - m_bit_idx_from));
             mask--;
 
             key >>= m_bit_idx_from;
