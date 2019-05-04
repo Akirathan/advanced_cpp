@@ -58,9 +58,8 @@ private:
 
     class i_bitmap_node {
     public:
-        i_bitmap_node(const concurrent_bitmap &bitmap, std::size_t bit_idx_from, std::size_t bit_idx_to)
-            : m_bitmap{bitmap},
-            m_bit_idx_from{bit_idx_from},
+        i_bitmap_node(std::size_t bit_idx_from, std::size_t bit_idx_to)
+            : m_bit_idx_from{bit_idx_from},
             m_bit_idx_to{bit_idx_to}
         {}
         virtual ~i_bitmap_node() = default;
@@ -68,7 +67,6 @@ private:
         virtual value_type get(key_type key) const = 0;
 
     protected:
-        const concurrent_bitmap &m_bitmap;
         const std::size_t m_bit_idx_from;
         const std::size_t m_bit_idx_to;
 
@@ -87,7 +85,8 @@ private:
     class bitmap_node : public i_bitmap_node {
     public:
         bitmap_node(const concurrent_bitmap &bitmap, std::size_t bit_idx_from, std::size_t bit_idx_to)
-            : i_bitmap_node{bitmap, bit_idx_from, bit_idx_to}
+            : i_bitmap_node{bit_idx_from, bit_idx_to},
+            m_bitmap{bitmap}
         {
             for (auto &&child : m_children) {
                 child = nullptr;
@@ -128,6 +127,7 @@ private:
         }
 
     private:
+        const concurrent_bitmap &m_bitmap;
         std::mutex m_mtx;
         std::array<i_bitmap_node *, array_size> m_children;
     };
@@ -135,8 +135,8 @@ private:
     template <std::size_t array_size>
     class bitmap_leaf_node : public i_bitmap_node {
     public:
-        bitmap_leaf_node(const concurrent_bitmap &bitmap, std::size_t bit_idx_from, std::size_t bit_idx_to)
-            : i_bitmap_node{bitmap, bit_idx_from, bit_idx_to},
+        bitmap_leaf_node(std::size_t bit_idx_from, std::size_t bit_idx_to)
+            : i_bitmap_node{bit_idx_from, bit_idx_to},
             m_data{}
         {}
 
@@ -225,7 +225,7 @@ private:
             return new bitmap_node<l2_array_size>{*this, bit_idx_from, bit_idx_to};
         }
         else if (are_indexes_in_bitrange(leaf_bit_range, bit_idx_from, bit_idx_to)) {
-            return new bitmap_leaf_node<leaf_block_array_size>{*this, bit_idx_from, bit_idx_to};
+            return new bitmap_leaf_node<leaf_block_array_size>{bit_idx_from, bit_idx_to};
         }
         else {
             return nullptr;
