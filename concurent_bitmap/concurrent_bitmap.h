@@ -18,63 +18,27 @@ constexpr std::size_t const_pow(std::size_t base, std::size_t x) noexcept
     return res;
 }
 
+
 class concurrent_bitmap {
 public:
-    using key_type = uint32_t;
     using value_type = bool;
+    using key_type = uint32_t;
 
     concurrent_bitmap()
-    {
-        m_l0_array.fill(nullptr);
-    }
+        : m_root{*this, l0_bit_range.first, l0_bit_range.second}
+    {}
 
     ~concurrent_bitmap()
-    {
-        for (l1_array_t *l1_array : m_l0_array) {
-            if (l1_array) {
-                for (l2_array_t *l2_array: *l1_array) {
-                    if (l2_array) {
-                        for (leaf_block_t *leaf_block: *l2_array) {
-                            if (leaf_block) {
-                                delete leaf_block;
-                            }
-                        }
-                        delete l2_array;
-                    }
-                }
-                delete l1_array;
-            }
-        }
-    }
+    {}
 
     value_type get(key_type key) const
     {
-        std::size_t l0_idx = get_index_to_l0(key);
-        if (m_l0_array[l0_idx] == nullptr) {
-            return false;
-        }
-
-        l1_array_t &l1_array = *m_l0_array[l0_idx];
-        std::size_t l1_idx = get_index_to_l1(key);
-        if (l1_array[l1_idx] == nullptr) {
-            return false;
-        }
-
-        l2_array_t &l2_array = *l1_array[l1_idx];
-        std::size_t l2_idx = get_index_to_l2(key);
-        if (l2_array[l2_idx] == nullptr) {
-            return false;
-        }
-
-        leaf_block_t &leaf_block = *l2_array[l2_idx];
-        std::size_t leaf_block_idx = get_index_to_leaf_block(key);
-        std::size_t byte_idx = get_index_to_byte(key);
-        return get_bit(leaf_block[leaf_block_idx], byte_idx);
+        return m_root.get(key);
     }
 
     void set(key_type key, value_type value)
     {
-        set_into_l0(key, value);
+        m_root.set(key, value);
     }
 
 private:
@@ -83,125 +47,193 @@ private:
     static constexpr std::size_t l2_bits = 6;
     static constexpr std::size_t leaf_block_bits = 11;
     static_assert(l0_bits + l1_bits + l2_bits + leaf_block_bits == sizeof(key_type) * 8 - 3);
-    static constexpr std::size_t leaf_block_array_size = const_pow(2, leaf_block_bits + 3);
+    using bit_range_t = std::pair<std::size_t, std::size_t>;
+    static constexpr bit_range_t l0_bit_range = std::make_pair(0, l0_bits);
+    static constexpr bit_range_t l1_bit_range = std::make_pair(l0_bit_range.second, l0_bit_range.second + l1_bits);
+    static constexpr bit_range_t l2_bit_range = std::make_pair(l1_bit_range.second, l1_bit_range.second + l2_bits);
+    static constexpr bit_range_t leaf_bit_range = std::make_pair(l2_bit_range.second, l2_bit_range.second + leaf_block_bits);
     static constexpr std::size_t l0_array_size = const_pow(2, l0_bits);
     static constexpr std::size_t l1_array_size = const_pow(2, l1_bits);
     static constexpr std::size_t l2_array_size = const_pow(2, l2_bits);
-    static constexpr key_type l_mask = 0x0000003F;
-    static constexpr key_type leaf_block_mask = 0x000007FF;
-    static constexpr key_type byte_idx_mask = 0x000000007;
+    static constexpr std::size_t leaf_block_array_size = const_pow(2, leaf_block_bits + 3);
 
-    using leaf_block_t = std::array<uint8_t, leaf_block_array_size>;
-    using l2_array_t = std::array<leaf_block_t *, l2_array_size>;
-    using l1_array_t = std::array<l2_array_t *, l1_array_size>;
-    using l0_array_t = std::array<l1_array_t *, l0_array_size>;
+    class i_bitmap_node {
+    public:
+        i_bitmap_node(const concurrent_bitmap &bitmap, std::size_t bit_idx_from, std::size_t bit_idx_to)
+            : m_bitmap{bitmap},
+            m_bit_idx_from{bit_idx_from},
+            m_bit_idx_to{bit_idx_to}
+        {}
+        virtual ~i_bitmap_node() = default;
+        virtual void set(key_type key, value_type value) = 0;
+        virtual value_type get(key_type key) const = 0;
 
-    l0_array_t m_l0_array;
-    std::mutex l1_mtx;
-    std::mutex l2_mtx;
-    std::mutex leaf_mtx;
+    protected:
+        const concurrent_bitmap &m_bitmap;
+        const std::size_t m_bit_idx_from;
+        const std::size_t m_bit_idx_to;
 
+        std::size_t get_index_from_key(key_type key) const
+        {
+            key_type mask = 1 << (m_bit_idx_to - m_bit_idx_from);
+            mask--;
 
-    void set_into_l0(key_type key, value_type value)
-    {
-        std::size_t l0_idx = get_index_to_l0(key);
-        if (m_l0_array[l0_idx] == nullptr) {
-            BOOST_LOG_TRIVIAL(debug) << "Creating new L1 array at l0_idx=" << l0_idx;
-            std::lock_guard<std::mutex> lock{l1_mtx};
-            m_l0_array[l0_idx] = new l1_array_t{};
-            m_l0_array[l0_idx]->fill(nullptr); // TODO: Is this necessary?
+            key >>= m_bit_idx_from;
+            key &= mask;
+            return static_cast<std::size_t>(key);
         }
-        set_into_l1(*m_l0_array[l0_idx], key, value);
-    }
+    };
 
-    void set_into_l1(l1_array_t &l1_array, key_type key, value_type value)
-    {
-        std::size_t l1_idx = get_index_to_l1(key);
-        if (l1_array[l1_idx] == nullptr) {
-            BOOST_LOG_TRIVIAL(debug) << "Creating new L2 array at l1_idx=" << l1_idx;
-            std::lock_guard<std::mutex> lock{l2_mtx};
-            l1_array[l1_idx] = new l2_array_t{};
-            l1_array[l1_idx]->fill(nullptr); // TODO: Is this necessary?
+    template <std::size_t array_size>
+    class bitmap_node : public i_bitmap_node {
+    public:
+        bitmap_node(const concurrent_bitmap &bitmap, std::size_t bit_idx_from, std::size_t bit_idx_to)
+            : i_bitmap_node{bitmap, bit_idx_from, bit_idx_to}
+        {
+            for (auto &&child : m_children) {
+                child = nullptr;
+            }
         }
-        set_into_l2(*l1_array[l1_idx], key, value);
-    }
 
-    void set_into_l2(l2_array_t &l2_array, key_type key, value_type value)
-    {
-        std::size_t l2_idx = get_index_to_l2(key);
-        if (l2_array[l2_idx] == nullptr) {
-            BOOST_LOG_TRIVIAL(debug) << "Creating new leaf block at l2_idx=" << l2_idx;
-            std::lock_guard<std::mutex> lock{leaf_mtx};
-            l2_array[l2_idx] = new leaf_block_t{};
-            l2_array[l2_idx]->fill(0); // TODO: Is this necessary?
+        ~bitmap_node() override
+        {
+            for (auto &&child : m_children) {
+                if (child != nullptr) {
+                    delete child;
+                }
+            }
         }
-        set_into_leaf(*l2_array[l2_idx], key, value);
-    }
 
-    void set_into_leaf(leaf_block_t &leaf_block, key_type key, value_type value)
-    {
-        std::size_t leaf_block_idx = get_index_to_leaf_block(key);
-        std::size_t byte_idx = get_index_to_byte(key);
-        BOOST_LOG_TRIVIAL(debug) << "Setting bit idx="<< byte_idx << " at leaft block idx=" << leaf_block_idx;
-        uint8_t byte = leaf_block[leaf_block_idx];
-        if (value) {
-            byte = set_bit(byte, byte_idx);
+        void set(key_type key, value_type value) override
+        {
+            std::size_t idx = get_index_from_key(key);
+            if (m_children[idx] == nullptr) {
+                auto [next_from_idx, next_to_idx] = m_bitmap.get_next_bit_indexes(m_bit_idx_from, m_bit_idx_to);
+                std::lock_guard<std::mutex> lock{m_mtx};
+                if (m_children[idx] == nullptr) {
+                    m_children[idx] = m_bitmap.create_bitmap_node(next_from_idx, next_to_idx);
+                }
+            }
+            m_children[idx].load()->set(key, value);
         }
-        else {
-            byte = reset_bit(byte, byte_idx);
+
+        value_type get(key_type key) const override
+        {
+            std::size_t idx = get_index_from_key(key);
+            if (m_children[idx] == nullptr) {
+                return false;
+            }
+            else {
+                return m_children[idx].load()->get(key);
+            }
         }
-        leaf_block[leaf_block_idx] = byte;
+
+    private:
+        std::mutex m_mtx;
+        std::array<std::atomic<i_bitmap_node *>, array_size> m_children;
+    };
+
+    template <std::size_t array_size>
+    class bitmap_leaf_node : public i_bitmap_node {
+    public:
+        bitmap_leaf_node(const concurrent_bitmap &bitmap, std::size_t bit_idx_from, std::size_t bit_idx_to)
+            : i_bitmap_node{bitmap, bit_idx_from, bit_idx_to},
+            m_data{}
+        {}
+
+        ~bitmap_leaf_node() override
+        {}
+
+        void set(key_type key, value_type value) override
+        {
+            std::size_t byte_idx = get_index_from_key(key);
+            std::size_t bit_idx = get_bit_index(key);
+            uint8_t byte = m_data[byte_idx];
+            if (value) {
+                byte = set_bit(byte, bit_idx);
+            }
+            else {
+                byte = reset_bit(byte, bit_idx);
+            }
+            m_data[byte_idx] = byte;
+        }
+
+        value_type get(key_type key) const override
+        {
+            std::size_t byte_idx = get_index_from_key(key);
+            std::size_t bit_idx = get_bit_index(key);
+            uint8_t byte = m_data[byte_idx];
+            return get_bit(byte, bit_idx);
+        }
+
+    private:
+        static constexpr key_type byte_idx_mask = 0x000000007;
+        std::array<std::atomic<uint8_t>, array_size> m_data;
+
+        std::size_t get_bit_index(key_type key) const
+        {
+            std::size_t idx = key >> m_bit_idx_from;
+            idx &= byte_idx_mask;
+            assert(idx >= 0 && idx <= 7);
+            return idx;
+        }
+
+        uint8_t set_bit(uint8_t byte, std::size_t idx) const
+        {
+            byte |= (1 << idx);
+            return byte;
+        }
+
+        uint8_t reset_bit(uint8_t byte, std::size_t idx) const
+        {
+            byte &= (1 << idx);
+            return byte;
+        }
+
+        bool get_bit(uint8_t byte, std::size_t idx) const
+        {
+            byte >>= idx;
+            byte &= 0x01;
+            return byte;
+        }
+    };
+
+    bitmap_node<l0_array_size> m_root;
+
+    std::pair<std::size_t, std::size_t> get_next_bit_indexes(std::size_t bit_idx_from, std::size_t bit_idx_to) const
+    {
+        if (are_indexes_in_bitrange(l0_bit_range, bit_idx_from, bit_idx_to)) {
+            return l1_bit_range;
+        }
+        else if (are_indexes_in_bitrange(l1_bit_range, bit_idx_from, bit_idx_to)) {
+            return l2_bit_range;
+        }
+        else if (are_indexes_in_bitrange(l2_bit_range, bit_idx_from, bit_idx_to)) {
+            return leaf_bit_range;
+        }
+
+        // Unreachable code.
+        assert(false);
     }
 
-    std::size_t get_index_to_l0(key_type key) const
+    i_bitmap_node * create_bitmap_node(std::size_t bit_idx_from, std::size_t bit_idx_to) const
     {
-        return l_mask & key;
+        if (are_indexes_in_bitrange(l1_bit_range, bit_idx_from, bit_idx_to)) {
+            return new bitmap_node<l1_array_size>{*this, bit_idx_from, bit_idx_to};
+        }
+        else if (are_indexes_in_bitrange(l2_bit_range, bit_idx_from, bit_idx_to)) {
+            return new bitmap_node<l2_array_size>{*this, bit_idx_from, bit_idx_to};
+        }
+        else if (are_indexes_in_bitrange(leaf_bit_range, bit_idx_from, bit_idx_to)) {
+            return new bitmap_leaf_node<leaf_block_array_size>{*this, bit_idx_from, bit_idx_to};
+        }
+
+        // Unreachable code.
+        assert(false);
     }
 
-    std::size_t get_index_to_l1(key_type key) const
+    bool are_indexes_in_bitrange(const bit_range_t &bitrange, std::size_t idx_from, std::size_t idx_to) const
     {
-        std::size_t idx = key >> l0_bits;
-        idx &= l_mask;
-        return idx;
-    }
-
-    std::size_t get_index_to_l2(key_type key) const
-    {
-        std::size_t idx = key >> (l0_bits + l1_bits);
-        idx &= l_mask;
-        return idx;
-    }
-
-    std::size_t get_index_to_leaf_block(key_type key) const
-    {
-        std::size_t idx = key >> (l0_bits + l1_bits + l2_bits);
-        idx &= leaf_block_mask;
-        return idx;
-    }
-
-    std::size_t get_index_to_byte(key_type key) const
-    {
-        std::size_t idx = key >> (l0_bits + l1_bits + l2_bits + leaf_block_bits);
-        idx &= byte_idx_mask;
-        return idx;
-    }
-
-    uint8_t set_bit(uint8_t byte, std::size_t idx) const
-    {
-        byte |= (1 << idx);
-        return byte;
-    }
-
-    uint8_t reset_bit(uint8_t byte, std::size_t idx) const
-    {
-        byte &= (1 << idx);
-        return byte;
-    }
-
-    bool get_bit(uint8_t byte, std::size_t idx) const
-    {
-        byte >>= idx;
-        byte &= 0x01;
-        return byte;
+        return bitrange.first <= idx_from && idx_to <= bitrange.second;
     }
 };
