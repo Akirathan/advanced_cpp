@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <thread>
 #include <vector>
+#include <bitset>
 #include "concurrent_bitmap.h"
 
 static void setup_logging()
@@ -14,6 +15,39 @@ static void setup_logging()
     boost::log::core::get()->set_filter
     (
         boost::log::trivial::severity >= boost::log::trivial::info
+    );
+}
+
+static bool should_be_in_same_leaf(uint32_t key1, uint32_t key2)
+{
+    constexpr uint32_t leaf_mask = 0x0003FFFF;
+
+    uint32_t leaf_idx_1 = key1 & leaf_mask;
+    uint32_t leaf_idx_2 = key2 & leaf_mask;
+    return leaf_idx_1 == leaf_idx_2;
+}
+
+static std::pair<uint32_t, uint32_t> generate_two_keys_to_same_leaf()
+{
+    std::bitset<32> key1;
+    std::bitset<32> key2;
+
+    // Same l0, l1, l2
+    for (size_t i = 0; i < 18; ++i) {
+        bool rand_bit = std::rand() % 2;
+        key1[i] = rand_bit;
+        key2[i] = rand_bit;
+    }
+
+    // Other leaf, bit
+    for (size_t i = 18; i < 32; ++i) {
+        key1[i] = std::rand() % 2;
+        key2[i] = std::rand() % 2;
+    }
+
+    return std::make_pair(
+        static_cast<uint32_t>(key1.to_ulong()),
+        static_cast<uint32_t>(key2.to_ulong())
     );
 }
 
@@ -58,6 +92,53 @@ BOOST_AUTO_TEST_CASE(more_sets)
         BOOST_TEST(bitmap.get(key) == true);
     }
 }
+
+BOOST_AUTO_TEST_CASE(should_be_in_same_leaf_simple_test)
+{
+    uint32_t addr1 = 0x000694D4;
+    uint32_t addr2 = 0x000A94D4;
+    BOOST_CHECK(should_be_in_same_leaf(addr1, addr2));
+}
+
+BOOST_AUTO_TEST_CASE(generate_keys_in_same_leaf_simple_test)
+{
+    for (int i = 0; i < 42; ++i) {
+        auto keys = generate_two_keys_to_same_leaf();
+        BOOST_CHECK(should_be_in_same_leaf(keys.first, keys.second));
+    }
+}
+
+BOOST_AUTO_TEST_CASE(two_sets_in_one_leaf)
+{
+    concurrent_bitmap bitmap;
+    uint32_t addr1 = 0x000694D4;
+    uint32_t addr2 = 0x000A94D4;
+    bitmap.set(addr1, true);
+    bitmap.set(addr2, true);
+    auto nodes_count = bitmap.get_nodes_count();
+    BOOST_CHECK(nodes_count.inner_nodes_count == 3);
+    BOOST_CHECK(nodes_count.leaves_count == 1);
+    BOOST_CHECK(bitmap.get_bytes_count() == 2);
+}
+
+BOOST_AUTO_TEST_CASE(more_sets_in_same_leaf)
+{
+    setup_logging();
+    concurrent_bitmap bitmap;
+    nodes_count node_count;
+    for (int i = 0; i < 42; ++i) {
+        auto keys = generate_two_keys_to_same_leaf();
+        bitmap.set(keys.first, true);
+        bitmap.set(keys.second, true);
+        auto new_node_count = bitmap.get_nodes_count();
+
+        BOOST_CHECK(new_node_count.leaves_count == node_count.leaves_count ||
+                    new_node_count.leaves_count == (node_count.leaves_count + 1));
+
+        node_count = new_node_count;
+    }
+}
+
 
 BOOST_AUTO_TEST_SUITE_END() // one_thread
 BOOST_AUTO_TEST_SUITE(more_threads)
@@ -112,7 +193,7 @@ BOOST_AUTO_TEST_CASE(many_threads_setting_ascending_keys)
 
 BOOST_AUTO_TEST_CASE(many_threads_random_keys)
 {
-    const size_t thread_num = 19;
+    const size_t thread_num = 59;
     setup_logging();
     concurrent_bitmap bitmap;
     std::vector<std::thread> threads;
