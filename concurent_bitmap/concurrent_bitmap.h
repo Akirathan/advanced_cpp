@@ -61,7 +61,10 @@ private:
         i_bitmap_node(std::size_t bit_idx_from, std::size_t bit_idx_to)
             : m_bit_idx_from{static_cast<uint8_t>(bit_idx_from)},
             m_bit_idx_to{static_cast<uint8_t>(bit_idx_to)}
-        {}
+        {
+            assert(bit_idx_from < bit_idx_to);
+        }
+
         virtual ~i_bitmap_node() = default;
         virtual void set(key_type key, value_type value) = 0;
         virtual value_type get(key_type key) const = 0;
@@ -79,27 +82,36 @@ private:
             key &= mask;
             return static_cast<std::size_t>(key);
         }
+
+        int get_children_array_size() const
+        {
+            return 1 << (m_bit_idx_to - m_bit_idx_from);
+        }
     };
 
-    template <std::size_t array_size>
     class bitmap_node : public i_bitmap_node {
     public:
         bitmap_node(const concurrent_bitmap &bitmap, std::size_t bit_idx_from, std::size_t bit_idx_to)
             : i_bitmap_node{bit_idx_from, bit_idx_to},
             m_bitmap{bitmap}
         {
-            for (auto &&child : m_children) {
-                child = nullptr;
+            int array_size = get_children_array_size();
+            m_children = new i_bitmap_node * [array_size];
+
+            for (int i = 0; i < array_size; ++i) {
+                m_children[i] = nullptr;
             }
         }
 
         ~bitmap_node() override
         {
-            for (auto &&child : m_children) {
-                if (child != nullptr) {
-                    delete child;
+            int array_size = get_children_array_size();
+            for (int i = 0; i < array_size; ++i) {
+                if (m_children[i] != nullptr) {
+                    delete m_children[i];
                 }
             }
+            delete[] m_children;
         }
 
         void set(key_type key, value_type value) override
@@ -129,16 +141,22 @@ private:
     private:
         const concurrent_bitmap &m_bitmap;
         std::mutex m_mtx;
-        std::array<i_bitmap_node *, array_size> m_children;
+        i_bitmap_node **m_children;
     };
 
-    template <std::size_t array_size>
     class bitmap_leaf_node : public i_bitmap_node {
     public:
         bitmap_leaf_node(std::size_t bit_idx_from, std::size_t bit_idx_to)
-            : i_bitmap_node{bit_idx_from, bit_idx_to},
-            m_data{}
-        {}
+            : i_bitmap_node{bit_idx_from, bit_idx_to}
+        {
+            int array_size = get_children_array_size();
+            m_data = new std::atomic<uint8_t>[array_size];
+        }
+
+        ~bitmap_leaf_node()
+        {
+            delete[] m_data;
+        }
 
         void set(key_type key, value_type value) override
         {
@@ -164,7 +182,7 @@ private:
 
     private:
         static constexpr key_type byte_idx_mask = 0x000000007;
-        std::array<std::atomic<uint8_t>, array_size> m_data;
+        std::atomic<uint8_t> *m_data;
 
         std::size_t get_bit_index(key_type key) const
         {
@@ -194,7 +212,7 @@ private:
         }
     };
 
-    bitmap_node<l0_array_size> m_root;
+    bitmap_node m_root;
 
     std::pair<std::size_t, std::size_t> get_next_bit_indexes(std::size_t bit_idx_from, std::size_t bit_idx_to) const
     {
@@ -219,13 +237,13 @@ private:
         assert(l1_bit_range.first <= bit_idx_from && bit_idx_to <= leaf_bit_range.second);
 
         if (are_indexes_in_bitrange(l1_bit_range, bit_idx_from, bit_idx_to)) {
-            return new bitmap_node<l1_array_size>{*this, bit_idx_from, bit_idx_to};
+            return new bitmap_node{*this, bit_idx_from, bit_idx_to};
         }
         else if (are_indexes_in_bitrange(l2_bit_range, bit_idx_from, bit_idx_to)) {
-            return new bitmap_node<l2_array_size>{*this, bit_idx_from, bit_idx_to};
+            return new bitmap_node{*this, bit_idx_from, bit_idx_to};
         }
         else if (are_indexes_in_bitrange(leaf_bit_range, bit_idx_from, bit_idx_to)) {
-            return new bitmap_leaf_node<leaf_block_array_size>{bit_idx_from, bit_idx_to};
+            return new bitmap_leaf_node{bit_idx_from, bit_idx_to};
         }
         else {
             return nullptr;
