@@ -59,16 +59,16 @@ private:
     class i_bitmap_node {
     public:
         i_bitmap_node(std::size_t bit_idx_from, std::size_t bit_idx_to)
-            : m_bit_idx_from{bit_idx_from},
-            m_bit_idx_to{bit_idx_to}
+            : m_bit_idx_from{static_cast<uint8_t>(bit_idx_from)},
+            m_bit_idx_to{static_cast<uint8_t>(bit_idx_to)}
         {}
         virtual ~i_bitmap_node() = default;
         virtual void set(key_type key, value_type value) = 0;
         virtual value_type get(key_type key) const = 0;
 
     protected:
-        const std::size_t m_bit_idx_from;
-        const std::size_t m_bit_idx_to;
+        const uint8_t m_bit_idx_from;
+        const uint8_t m_bit_idx_to;
 
         std::size_t get_index_from_key(key_type key) const
         {
