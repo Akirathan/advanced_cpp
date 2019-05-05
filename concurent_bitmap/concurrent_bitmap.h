@@ -153,7 +153,7 @@ private:
             m_data = new std::atomic<uint8_t>[array_size];
         }
 
-        ~bitmap_leaf_node()
+        ~bitmap_leaf_node() override
         {
             delete[] m_data;
         }
