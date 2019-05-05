@@ -96,7 +96,7 @@ private:
             m_bitmap{bitmap}
         {
             int array_size = get_children_array_size();
-            m_children = new i_bitmap_node * [array_size];
+            m_children = new std::atomic<i_bitmap_node *> [array_size];
 
             for (int i = 0; i < array_size; ++i) {
                 m_children[i] = nullptr;
@@ -124,7 +124,7 @@ private:
                     m_children[idx] = m_bitmap.create_bitmap_node(next_from_idx, next_to_idx);
                 }
             }
-            m_children[idx]->set(key, value);
+            m_children[idx].load()->set(key, value);
         }
 
         value_type get(key_type key) const override
@@ -134,14 +134,14 @@ private:
                 return false;
             }
             else {
-                return m_children[idx]->get(key);
+                return m_children[idx].load()->get(key);
             }
         }
 
     private:
         const concurrent_bitmap &m_bitmap;
         std::mutex m_mtx;
-        i_bitmap_node **m_children;
+        std::atomic<i_bitmap_node *> *m_children;
     };
 
     class bitmap_leaf_node : public i_bitmap_node {
