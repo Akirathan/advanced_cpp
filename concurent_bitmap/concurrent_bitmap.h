@@ -178,7 +178,11 @@ private:
             : i_bitmap_node{bit_idx_from, bit_idx_to}
         {
             int array_size = get_children_array_size();
+
             m_data = new std::atomic<uint8_t>[array_size];
+            for (int i = 0; i < array_size; ++i) {
+                m_data[i] = 0;
+            }
         }
 
         ~bitmap_leaf_node() override
