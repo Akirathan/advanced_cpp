@@ -229,13 +229,13 @@ private:
         }
 
     private:
-        static constexpr key_type byte_idx_mask = 0x000000007;
+        static constexpr key_type bit_idx_mask = 0x000000007;
         std::atomic<uint8_t> *m_data;
 
         std::size_t get_bit_index(key_type key) const
         {
-            std::size_t idx = key >> m_bit_idx_from;
-            idx &= byte_idx_mask;
+            std::size_t idx = key >> (sizeof(key_type)*8 - 3);
+            idx &= bit_idx_mask;
             assert(idx >= 0 && idx <= 7);
             return idx;
         }
