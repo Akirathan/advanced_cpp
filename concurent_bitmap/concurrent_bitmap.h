@@ -1,12 +1,16 @@
 // concurrent_bitmap.h
 // Pavel Marek NPRG051 2018/2019
 
+#define USE_BOOST
+
 #include <cstdint>
 #include <cassert>
 #include <array>
 #include <atomic>
 #include <mutex>
+#ifdef USE_BOOST
 #include <boost/log/trivial.hpp>
+#endif
 
 /**
  * We need this function, because std::pow is not constexpr.
@@ -20,6 +24,22 @@ constexpr std::size_t const_pow(std::size_t base, std::size_t x) noexcept
     }
     return res;
 }
+
+// debug
+static std::string indentation(std::size_t indent_level)
+{
+    std::ostringstream output;
+    for (std::size_t i = 0; i < indent_level; ++i)
+        output << "  ";
+    return output.str();
+}
+
+// debug
+struct nodes_count {
+    std::size_t inner_nodes_count = 0;
+    std::size_t leaves_count = 0;
+};
+
 
 
 class concurrent_bitmap {
@@ -41,9 +61,35 @@ public:
         m_root.set(key, value);
     }
 
+    std::size_t get_bytes_count() const
+    {
+        return m_root.get_set_bytes();
+    }
+
+    nodes_count get_nodes_count() const
+    {
+        return m_root.get_nodes_count(nodes_count{});
+    }
+
     void log() const
     {
         m_root.log(0);
+    }
+
+    void log_bytes_count() const
+    {
+#ifdef USE_BOOST
+        BOOST_LOG_TRIVIAL(info) << "Total set bytes count = " << m_root.get_set_bytes();
+#endif
+    }
+
+    void log_nodes_count() const
+    {
+        auto nodes_count_ = m_root.get_nodes_count(nodes_count{});
+#ifdef USE_BOOST
+        BOOST_LOG_TRIVIAL(info) << "Nodes count:" << "\n\t Leaves count = " << nodes_count_.leaves_count
+                                                    << "\n\t Inner nodes count = " << nodes_count_.inner_nodes_count;
+#endif
     }
 
 private:
@@ -75,6 +121,8 @@ private:
         virtual void set(key_type key, value_type value) = 0;
         virtual value_type get(key_type key) const = 0;
         virtual void log(std::size_t indent_level) const = 0;
+        virtual std::size_t get_set_bytes() const = 0;
+        virtual nodes_count get_nodes_count(nodes_count accumulator) const = 0;
 
     protected:
         const uint8_t m_bit_idx_from;
@@ -154,16 +202,40 @@ private:
                     children_count++;
                 }
             }
-            for (std::size_t i = 0; i < indent_level; ++i)
-                BOOST_LOG_TRIVIAL(debug) << "  ";
+#ifdef USE_BOOST
+            BOOST_LOG_TRIVIAL(debug) << indentation(indent_level) << "Node: children count = " << children_count;
+#endif
 
-            BOOST_LOG_TRIVIAL(debug) << "Node: children count = " << children_count;
-
+            indent_level++;
             for (int i = 0; i < array_size; ++i) {
                 if (m_children[i] != nullptr) {
-                    m_children[i].load()->log(++indent_level);
+                    m_children[i].load()->log(indent_level);
                 }
             }
+        }
+
+        std::size_t get_set_bytes() const override
+        {
+            int array_size = get_children_array_size();
+            std::size_t set_bytes_count = 0;
+            for (int i = 0; i < array_size; ++i) {
+                if (m_children[i] != nullptr) {
+                    set_bytes_count += m_children[i].load()->get_set_bytes();
+                }
+            }
+            return set_bytes_count;
+        }
+
+        nodes_count get_nodes_count(nodes_count accumulator) const override
+        {
+            accumulator.inner_nodes_count++;
+            int array_size = get_children_array_size();
+            for (int i = 0; i < array_size; ++i) {
+                if (m_children[i] != nullptr) {
+                    accumulator = m_children[i].load()->get_nodes_count(accumulator);
+                }
+            }
+            return accumulator;
         }
 
     private:
@@ -222,10 +294,26 @@ private:
                     set_bytes_count++;
             }
 
-            for (std::size_t i = 0; i < indent_level; ++i)
-                BOOST_LOG_TRIVIAL(debug) << "  ";
+#ifdef USE_BOOST
+            BOOST_LOG_TRIVIAL(debug) << indentation(indent_level) << "Leaf: set bytes count = " << set_bytes_count;
+#endif
+        }
 
-            BOOST_LOG_TRIVIAL(debug) << "Leaf: set bytes count = " << set_bytes_count;
+        std::size_t get_set_bytes() const override
+        {
+            int array_size = get_children_array_size();
+            std::size_t set_bytes_count = 0;
+            for (int i = 0; i < array_size; ++i) {
+                if (m_data[i] != 0)
+                    set_bytes_count++;
+            }
+            return set_bytes_count;
+        }
+
+        nodes_count get_nodes_count(nodes_count accumulator) const override
+        {
+            accumulator.leaves_count++;
+            return accumulator;
         }
 
     private:
@@ -285,12 +373,24 @@ private:
         assert(l1_bit_range.first <= bit_idx_from && bit_idx_to <= leaf_bit_range.second);
 
         if (are_indexes_in_bitrange(l1_bit_range, bit_idx_from, bit_idx_to)) {
+#ifdef USE_BOOST
+            BOOST_LOG_TRIVIAL(debug) << "Creating L1 bitmap node, bit_idx_from="<< bit_idx_from
+                                     << ", bit_idx_to=" << bit_idx_to;
+#endif
             return new bitmap_node{*this, bit_idx_from, bit_idx_to};
         }
         else if (are_indexes_in_bitrange(l2_bit_range, bit_idx_from, bit_idx_to)) {
+#ifdef USE_BOOST
+            BOOST_LOG_TRIVIAL(debug) << "Creating L2 bitmap node, bit_idx_from="<< bit_idx_from
+                                     << ", bit_idx_to=" << bit_idx_to;
+#endif
             return new bitmap_node{*this, bit_idx_from, bit_idx_to};
         }
         else if (are_indexes_in_bitrange(leaf_bit_range, bit_idx_from, bit_idx_to)) {
+#ifdef USE_BOOST
+            BOOST_LOG_TRIVIAL(debug) << "Creating leaf node, bit_idx_from="<< bit_idx_from
+                                     << ", bit_idx_to=" << bit_idx_to;
+#endif
             return new bitmap_leaf_node{bit_idx_from, bit_idx_to};
         }
         else {
