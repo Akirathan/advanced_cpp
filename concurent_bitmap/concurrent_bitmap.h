@@ -6,6 +6,7 @@
 #include <array>
 #include <atomic>
 #include <mutex>
+#include <boost/log/trivial.hpp>
 
 /**
  * We need this function, because std::pow is not constexpr.
@@ -40,6 +41,11 @@ public:
         m_root.set(key, value);
     }
 
+    void log() const
+    {
+        m_root.log(0);
+    }
+
 private:
     static constexpr std::size_t l0_bits = 6;
     static constexpr std::size_t l1_bits = 6;
@@ -68,6 +74,7 @@ private:
         virtual ~i_bitmap_node() = default;
         virtual void set(key_type key, value_type value) = 0;
         virtual value_type get(key_type key) const = 0;
+        virtual void log(std::size_t indent_level) const = 0;
 
     protected:
         const uint8_t m_bit_idx_from;
@@ -138,6 +145,27 @@ private:
             }
         }
 
+        void log(std::size_t indent_level) const override
+        {
+            std::size_t children_count = 0;
+            int array_size = get_children_array_size();
+            for (int i = 0; i < array_size; ++i) {
+                if (m_children[i] != nullptr) {
+                    children_count++;
+                }
+            }
+            for (std::size_t i = 0; i < indent_level; ++i)
+                BOOST_LOG_TRIVIAL(debug) << "  ";
+
+            BOOST_LOG_TRIVIAL(debug) << "Node: children count = " << children_count;
+
+            for (int i = 0; i < array_size; ++i) {
+                if (m_children[i] != nullptr) {
+                    m_children[i].load()->log(++indent_level);
+                }
+            }
+        }
+
     private:
         const concurrent_bitmap &m_bitmap;
         std::mutex m_mtx;
@@ -178,6 +206,22 @@ private:
             std::size_t bit_idx = get_bit_index(key);
             uint8_t byte = m_data[byte_idx];
             return get_bit(byte, bit_idx);
+        }
+
+        void log(std::size_t indent_level) const override
+        {
+            int array_size = get_children_array_size();
+            std::size_t set_bytes_count = 0;
+
+            for (int i = 0; i < array_size; ++i) {
+                if (m_data[i] != 0)
+                    set_bytes_count++;
+            }
+
+            for (std::size_t i = 0; i < indent_level; ++i)
+                BOOST_LOG_TRIVIAL(debug) << "  ";
+
+            BOOST_LOG_TRIVIAL(debug) << "Leaf: set bytes count = " << set_bytes_count;
         }
 
     private:
