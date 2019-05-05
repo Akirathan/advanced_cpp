@@ -151,7 +151,7 @@ private:
             m_bitmap{bitmap}
         {
             int array_size = get_children_array_size();
-            m_children = new std::atomic<i_bitmap_node *> [array_size];
+            m_children = new i_bitmap_node * [array_size];
 
             for (int i = 0; i < array_size; ++i) {
                 m_children[i] = nullptr;
@@ -179,7 +179,7 @@ private:
                     m_children[idx] = m_bitmap.create_bitmap_node(next_from_idx, next_to_idx);
                 }
             }
-            m_children[idx].load()->set(key, value);
+            m_children[idx]->set(key, value);
         }
 
         value_type get(key_type key) const override
@@ -189,7 +189,7 @@ private:
                 return false;
             }
             else {
-                return m_children[idx].load()->get(key);
+                return m_children[idx]->get(key);
             }
         }
 
@@ -209,7 +209,7 @@ private:
             indent_level++;
             for (int i = 0; i < array_size; ++i) {
                 if (m_children[i] != nullptr) {
-                    m_children[i].load()->log(indent_level);
+                    m_children[i]->log(indent_level);
                 }
             }
         }
@@ -220,7 +220,7 @@ private:
             std::size_t set_bytes_count = 0;
             for (int i = 0; i < array_size; ++i) {
                 if (m_children[i] != nullptr) {
-                    set_bytes_count += m_children[i].load()->get_set_bytes();
+                    set_bytes_count += m_children[i]->get_set_bytes();
                 }
             }
             return set_bytes_count;
@@ -232,7 +232,7 @@ private:
             int array_size = get_children_array_size();
             for (int i = 0; i < array_size; ++i) {
                 if (m_children[i] != nullptr) {
-                    accumulator = m_children[i].load()->get_nodes_count(accumulator);
+                    accumulator = m_children[i]->get_nodes_count(accumulator);
                 }
             }
             return accumulator;
@@ -241,7 +241,7 @@ private:
     private:
         const concurrent_bitmap &m_bitmap;
         std::mutex m_mtx;
-        std::atomic<i_bitmap_node *> *m_children;
+        i_bitmap_node **m_children;
     };
 
     class bitmap_leaf_node : public i_bitmap_node {
