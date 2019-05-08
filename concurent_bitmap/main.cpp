@@ -2,6 +2,7 @@
 #include "kuba_concurrent_bitmap.h"
 #include <thread>
 #include <vector>
+#include <bitset>
 
 static void kuba_bitmap()
 {
@@ -59,6 +60,22 @@ static void kuba_empty_test()
     assert(bitmap.get_set_bytes() == 0);
 }
 
+static void uint_max_test()
+{
+    uint32_t val = UINT32_MAX;
+    std::bitset<32> bitset{val};
+    for (size_t i = 0; i < 32; ++i) {
+        if (i % 4 == 0) {
+            std::cout << " ";
+        }
+        if (i % 8 == 0) {
+            std::cout << "-";
+        }
+        std::cout << bitset[i];
+    }
+    std::cout << std::endl;
+}
+
 static void simple_kuba_test()
 {
     const int key_count = 1;
@@ -72,5 +89,5 @@ static void simple_kuba_test()
 
 int main()
 {
-    simple_kuba_test();
+    uint_max_test();
 }
