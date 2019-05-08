@@ -153,9 +153,9 @@ private:
         {
             std::size_t idx = get_index_from_key(key);
             if (m_children[idx] == nullptr) {
-                auto [next_from_idx, next_to_idx] = m_bitmap.get_next_bit_indexes(m_bit_idx_from, m_bit_idx_to);
                 std::lock_guard<std::mutex> lock{m_mtx};
                 if (m_children[idx] == nullptr) {
+                    auto [next_from_idx, next_to_idx] = m_bitmap.get_next_bit_indexes(m_bit_idx_from, m_bit_idx_to);
                     m_children[idx] = m_bitmap.create_bitmap_node(next_from_idx, next_to_idx);
                 }
             }
@@ -213,22 +213,19 @@ private:
         {
             std::size_t byte_idx = get_index_from_key(key);
             std::size_t bit_idx = get_bit_index(key);
-            uint8_t byte = m_data[byte_idx];
             if (value) {
-                byte = set_bit(byte, bit_idx);
+                m_data[byte_idx] |= (1 << bit_idx);
             }
             else {
-                byte = reset_bit(byte, bit_idx);
+                m_data[byte_idx] &= ~(1 << bit_idx);
             }
-            m_data[byte_idx] = byte;
         }
 
         value_type get(key_type key) const override
         {
             std::size_t byte_idx = get_index_from_key(key);
             std::size_t bit_idx = get_bit_index(key);
-            uint8_t byte = m_data[byte_idx];
-            return get_bit(byte, bit_idx);
+            return (m_data[byte_idx] & (1 << bit_idx)) != 0;
         }
 
         std::size_t get_set_bytes() const override
@@ -257,25 +254,6 @@ private:
             idx &= bit_idx_mask;
             assert(idx >= 0 && idx <= 7);
             return idx;
-        }
-
-        uint8_t set_bit(uint8_t byte, std::size_t idx) const
-        {
-            byte |= (1 << idx);
-            return byte;
-        }
-
-        uint8_t reset_bit(uint8_t byte, std::size_t idx) const
-        {
-            byte &= ~(1 << idx);
-            return byte;
-        }
-
-        bool get_bit(uint8_t byte, std::size_t idx) const
-        {
-            byte >>= idx;
-            byte &= 0x01;
-            return byte;
         }
     };
 
