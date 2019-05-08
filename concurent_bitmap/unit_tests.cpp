@@ -120,6 +120,16 @@ BOOST_AUTO_TEST_CASE(more_sets)
     }
 }
 
+BOOST_AUTO_TEST_CASE(set_true_and_then_set_false)
+{
+    setup_logging();
+    concurrent_bitmap bitmap;
+    const uint32_t key = 42;
+    bitmap.set(key, true);
+    bitmap.set(key, false);
+    BOOST_CHECK_EQUAL(bitmap.get(key), false);
+}
+
 BOOST_AUTO_TEST_CASE(should_be_in_same_leaf_simple_test)
 {
     uint32_t addr1 = 0x000694D4;
