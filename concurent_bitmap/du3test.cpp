@@ -115,13 +115,14 @@ bool run_test(size_t thread_count, size_t address_base, size_t thread_byte_offse
 
 	delete[] threads;
 
+	cout << "Keys cout = " << keys.size() << endl;
 	//cout << "Test run OK" << endl;
 	return true;
 }
 
 static bool test_wrapper(size_t thread_count, size_t address_base, size_t thread_byte_offset, size_t sample_count)
 {
-    bool use_kuba = true;
+    bool use_kuba = false;
     if (use_kuba) {
         return run_test<kuba::concurrent_bitmap>(thread_count, address_base, thread_byte_offset, sample_count);
     }
