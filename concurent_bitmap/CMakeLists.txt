@@ -29,3 +29,13 @@ target_link_libraries(concurent_bitmap ${Boost_LIBRARIES})
 
 include(unit_tests.cmake)
 
+
+
+
+############################# KUBA UNIT TESTS ####################################
+add_executable(kuba_unit_tests
+		${SOURCES}
+		kuba_unit_tests.cpp
+		)
+
+target_link_libraries(kuba_unit_tests ${Boost_LIBRARIES})
