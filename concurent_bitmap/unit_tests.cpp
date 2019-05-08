@@ -284,5 +284,41 @@ BOOST_AUTO_TEST_CASE(many_threads_random_keys)
     }
 }
 
+BOOST_AUTO_TEST_CASE(many_keys_into_same_leaf_simultaneously)
+{
+    const size_t thread_count = 8;
+    const size_t keys_per_thread = 64;
+    const size_t key_count = thread_count * keys_per_thread;
+
+    setup_logging();
+    concurrent_bitmap bitmap;
+    std::vector<std::thread> threads;
+    std::vector<uint32_t> keys = generate_many_keys_to_same_leaf(key_count);
+
+    for (size_t thread_idx = 0; thread_idx < thread_count; ++thread_idx) {
+        threads.emplace_back([=, &keys, &bitmap](){
+            for (size_t key_idx = thread_idx * keys_per_thread;
+                 key_idx < (thread_idx * keys_per_thread) + keys_per_thread;
+                 ++key_idx)
+            {
+                bitmap.set(keys[key_idx], true);
+            }
+        });
+    }
+
+    for (std::thread &thread : threads) {
+        thread.join();
+    }
+
+    for (uint32_t key : keys) {
+        BOOST_CHECK(bitmap.get(key) == true);
+    }
+
+    // Check that only one leaf was created.
+    nodes_count node_count = bitmap.get_nodes_count();
+    BOOST_CHECK(node_count.inner_nodes_count == 3);
+    BOOST_CHECK(node_count.leaves_count == 1);
+}
+
 
 BOOST_AUTO_TEST_SUITE_END() // more_threads
