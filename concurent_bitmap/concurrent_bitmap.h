@@ -267,7 +267,7 @@ private:
 
         uint8_t reset_bit(uint8_t byte, std::size_t idx) const
         {
-            byte &= (1 << idx);
+            byte &= ~(1 << idx);
             return byte;
         }
 
