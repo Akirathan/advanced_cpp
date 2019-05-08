@@ -286,8 +286,8 @@ BOOST_AUTO_TEST_CASE(many_threads_random_keys)
 
 BOOST_AUTO_TEST_CASE(many_keys_into_same_leaf_simultaneously)
 {
-    const size_t thread_count = 8;
-    const size_t keys_per_thread = 64;
+    const size_t thread_count = 4;
+    const size_t keys_per_thread = 1024;
     const size_t key_count = thread_count * keys_per_thread;
 
     setup_logging();
@@ -311,7 +311,7 @@ BOOST_AUTO_TEST_CASE(many_keys_into_same_leaf_simultaneously)
     }
 
     for (uint32_t key : keys) {
-        BOOST_CHECK(bitmap.get(key) == true);
+        BOOST_CHECK(bitmap.get(key));
     }
 
     // Check that only one leaf was created.
