@@ -1,13 +1,17 @@
 // concurrent_bitmap.h
 // Pavel Marek NPRG051 2018/2019
 
-#define USE_BOOST
+//#define USE_BOOST
 
 #include <cstdint>
 #include <cassert>
 #include <array>
 #include <atomic>
 #include <mutex>
+#include <sstream>
+
+#include "test_common.hpp" // TODO
+
 #ifdef USE_BOOST
 #include <boost/log/trivial.hpp>
 #endif
@@ -33,12 +37,6 @@ static std::string indentation(std::size_t indent_level)
         output << "  ";
     return output.str();
 }
-
-// debug
-struct nodes_count {
-    std::size_t inner_nodes_count = 0;
-    std::size_t leaves_count = 0;
-};
 
 
 

@@ -14,6 +14,10 @@ include_directories(${Boost_INCLUDE_DIR})
 set(SOURCES
 		concurrent_bitmap.h
 		concurrent_bitmap.cpp
+		kuba_concurrent_bitmap.h
+		kuba_concurrent_bitmap.cpp
+		memory_check.hpp
+		test_common.hpp
         )
 
 add_executable(concurent_bitmap

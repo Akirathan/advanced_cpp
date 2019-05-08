@@ -2,9 +2,12 @@
 #include <iostream>
 #include <cstdlib>
 #include <thread>
+#include <bitset>
 #include <vector>
 #include <mutex>
 #include "concurrent_bitmap.h"
+#include "kuba_concurrent_bitmap.h"
+#include "memory_check.hpp"
 #include <boost/log/expressions.hpp>
 #include <boost/log/core.hpp>
 #include <boost/log/trivial.hpp>
@@ -28,21 +31,40 @@ static bool should_be_in_same_leaf(uint32_t key1, uint32_t key2)
     return leaf_idx_1 == leaf_idx_2;
 }
 
+static bool should_be_in_same_leaf_bitmap(uint32_t key1, uint32_t key2)
+{
+    std::bitset<32> bitset1{key1};
+    std::bitset<32> bitset2{key2};
+
+    // l0, l1, l2 should be same.
+    for (size_t i = 0; i < 18; ++i) {
+        if (bitset1[i] != bitset2[i])
+            return false;
+    }
+    return true;
+}
+
 static vector<pair<uint32_t, uint32_t>> get_keys_that_should_be_in_same_leaf(const vector<uint32_t> &keys)
 {
     vector<pair<uint32_t, uint32_t>> keys_in_same_leaf;
-    for (size_t i = 0; i < keys.size(); ++i) {
-        for (size_t j = i; j < keys.size(); ++j) {
-            if (should_be_in_same_leaf(keys[i], keys[j]))
-                keys_in_same_leaf.push_back(make_pair(keys[i], keys[j]));
-        }
-    }
+    for (size_t i = 0; i < keys.size(); ++i)
+        for (size_t j = i+1; j < keys.size(); ++j)
+            if (should_be_in_same_leaf_bitmap(keys[i], keys[j]))
+                keys_in_same_leaf.emplace_back(make_pair(keys[i], keys[j]));
     return keys_in_same_leaf;
 }
 
+static void print_mem_usage()
+{
+    double vm_usage, resident_set;
+    process_mem_usage(vm_usage, resident_set);
+    cout << "MEMORY USAGE - VM usage: " << vm_usage << ", resident set: " << resident_set << endl;
+}
+
+template <typename BitmapType>
 bool run_test(size_t thread_count, size_t address_base, size_t thread_byte_offset, size_t tested_length)
 {
-	concurrent_bitmap cbmp;
+	BitmapType cbmp;
 	vector<uint32_t> keys;
 	mutex keys_mtx;
 
@@ -71,8 +93,12 @@ bool run_test(size_t thread_count, size_t address_base, size_t thread_byte_offse
 	//auto keys_in_same_leaf = get_keys_that_should_be_in_same_leaf(keys);
 	//cout << "Keys that should be in same leaf cout = " << keys_in_same_leaf.size() << endl;
 
-	cbmp.log_bytes_count();
-	cbmp.log_nodes_count();
+	print_mem_usage();
+	nodes_count node_count = cbmp.get_nodes_count();
+	cout << "Nodes count ... inner nodes = " << node_count.inner_nodes_count << ", leaves = " << node_count.leaves_count << endl;
+
+    //cbmp.log_bytes_count();
+
 	for (size_t i = 0; i < tested_length; i++)
 	{
 		for (size_t thread_id = 0; thread_id < thread_count; thread_id++)
@@ -93,6 +119,17 @@ bool run_test(size_t thread_count, size_t address_base, size_t thread_byte_offse
 	return true;
 }
 
+static bool test_wrapper(size_t thread_count, size_t address_base, size_t thread_byte_offset, size_t sample_count)
+{
+    bool use_kuba = true;
+    if (use_kuba) {
+        return run_test<kuba::concurrent_bitmap>(thread_count, address_base, thread_byte_offset, sample_count);
+    }
+    else {
+        return run_test<concurrent_bitmap>(thread_count, address_base, thread_byte_offset, sample_count);
+    }
+}
+
 int main(int argc, char** argv)
 {
     setup_logging();
@@ -105,7 +142,7 @@ int main(int argc, char** argv)
 
 	for (size_t i = 0; i < repeat_count; i++)
 	{
-		if (!run_test(thread_count, address_base, thread_byte_offset, sample_count))
+		if (!test_wrapper(thread_count, address_base, thread_byte_offset, sample_count))
 		{
 			cout << "Error" << endl;
 			return 0;
