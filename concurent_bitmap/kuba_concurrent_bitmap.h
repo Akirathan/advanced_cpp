@@ -60,6 +60,7 @@ public:
     void set(key_type key, value_type value);
 
     nodes_count get_nodes_count(nodes_count accumulator) const;
+    size_t get_set_bytes() const;
 };
 
 class concurrent_bitmap : public concurrent_bitmap_traits {
@@ -70,6 +71,7 @@ public:
     void set(key_type key, value_type value);
 
     nodes_count get_nodes_count() const;
+    size_t get_set_bytes() const;
 };
 
 } // namespace kuba

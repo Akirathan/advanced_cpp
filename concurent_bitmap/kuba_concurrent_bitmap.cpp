@@ -127,6 +127,29 @@ nodes_count concurrent_bitmap_node::get_nodes_count(nodes_count accumulator) con
     }
 }
 
+size_t concurrent_bitmap_node::get_set_bytes() const
+{
+    if (is_leaf) {
+        int array_size = 1 << (max_bit - min_bit);
+        std::size_t set_bytes_count = 0;
+        for (int i = 0; i < array_size; ++i) {
+            if (data[i] != 0)
+                set_bytes_count++;
+        }
+        return set_bytes_count;
+    }
+    else {
+        int array_size = 1 << (max_bit - min_bit);
+        std::size_t set_bytes_count = 0;
+        for (int i = 0; i < array_size; ++i) {
+            if (nodes[i] != nullptr) {
+                set_bytes_count += nodes[i]->get_set_bytes();
+            }
+        }
+        return set_bytes_count;
+    }
+}
+
 concurrent_bitmap_traits::value_type concurrent_bitmap::get(key_type key) const
 {
     return root.get(key);
@@ -140,6 +163,11 @@ void concurrent_bitmap::set(key_type key, value_type value)
 nodes_count concurrent_bitmap::get_nodes_count() const
 {
     return root.get_nodes_count(nodes_count{});
+}
+
+size_t concurrent_bitmap::get_set_bytes() const
+{
+    return root.get_set_bytes();
 }
 
 } // namespace kuba
