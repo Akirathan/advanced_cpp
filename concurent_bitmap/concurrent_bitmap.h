@@ -69,11 +69,6 @@ public:
         return m_root.get_nodes_count(nodes_count{});
     }
 
-    void log() const
-    {
-        m_root.log(0);
-    }
-
     void log_bytes_count() const
     {
 #ifdef USE_BOOST
@@ -115,7 +110,6 @@ private:
         virtual ~i_bitmap_node() = default;
         virtual void set(key_type key, value_type value) = 0;
         virtual value_type get(key_type key) const = 0;
-        virtual void log(std::size_t indent_level) const = 0;
         virtual std::size_t get_set_bytes() const = 0;
         virtual nodes_count get_nodes_count(nodes_count accumulator) const = 0;
 
@@ -179,27 +173,6 @@ private:
             }
         }
 
-        void log(std::size_t indent_level) const override
-        {
-            std::size_t children_count = 0;
-            int array_size = get_children_array_size();
-            for (int i = 0; i < array_size; ++i) {
-                if (m_children[i] != nullptr) {
-                    children_count++;
-                }
-            }
-#ifdef USE_BOOST
-            BOOST_LOG_TRIVIAL(debug) << indentation(indent_level) << "Node: children count = " << children_count;
-#endif
-
-            indent_level++;
-            for (int i = 0; i < array_size; ++i) {
-                if (m_children[i] != nullptr) {
-                    m_children[i]->log(indent_level);
-                }
-            }
-        }
-
         std::size_t get_set_bytes() const override
         {
             std::size_t set_bytes_count = 0;
@@ -256,21 +229,6 @@ private:
             std::size_t bit_idx = get_bit_index(key);
             uint8_t byte = m_data[byte_idx];
             return get_bit(byte, bit_idx);
-        }
-
-        void log(std::size_t indent_level) const override
-        {
-            int array_size = get_children_array_size();
-            std::size_t set_bytes_count = 0;
-
-            for (int i = 0; i < array_size; ++i) {
-                if (m_data[i] != 0)
-                    set_bytes_count++;
-            }
-
-#ifdef USE_BOOST
-            BOOST_LOG_TRIVIAL(debug) << indentation(indent_level) << "Leaf: set bytes count = " << set_bytes_count;
-#endif
         }
 
         std::size_t get_set_bytes() const override
