@@ -51,6 +51,33 @@ static std::pair<uint32_t, uint32_t> generate_two_keys_to_same_leaf()
     );
 }
 
+static std::vector<uint32_t> generate_many_keys_to_same_leaf(size_t key_count)
+{
+    std::vector<std::bitset<32>> keys;
+    keys.resize(key_count);
+
+    // Same l0, l1, l2
+    for (size_t i = 0; i < 18; ++i) {
+        bool rand_bit = std::rand() % 2;
+        for (std::bitset<32> &key : keys) {
+            key[i] = rand_bit;
+        }
+    }
+
+    // Other leaf, bit
+    for (size_t i = 18; i < 32; ++i) {
+        for (std::bitset<32> &key : keys) {
+            key[i] = std::rand() % 2;
+        }
+    }
+
+    std::vector<uint32_t> ulong_keys;
+    for (const std::bitset<32> &key : keys) {
+        ulong_keys.push_back(static_cast<uint32_t>(key.to_ulong()));
+    }
+    return ulong_keys;
+}
+
 BOOST_AUTO_TEST_SUITE(one_thread)
 
 BOOST_AUTO_TEST_CASE(simple_test)
@@ -108,6 +135,17 @@ BOOST_AUTO_TEST_CASE(generate_keys_in_same_leaf_simple_test)
     }
 }
 
+BOOST_AUTO_TEST_CASE(generate_many_keys_to_same_leaf_simple_test)
+{
+    const size_t key_count = 10;
+    auto keys = generate_many_keys_to_same_leaf(key_count);
+    for (size_t i = 0; i < key_count; ++i) {
+        for (size_t j = i; j < key_count; ++j) {
+            BOOST_CHECK(should_be_in_same_leaf(keys[i], keys[j]));
+        }
+    }
+}
+
 BOOST_AUTO_TEST_CASE(two_sets_in_one_leaf)
 {
     concurrent_bitmap bitmap;
@@ -131,6 +169,31 @@ BOOST_AUTO_TEST_CASE(more_sets_in_same_leaf)
         bitmap.set(keys.first, true);
         bitmap.set(keys.second, true);
         auto new_node_count = bitmap.get_nodes_count();
+
+        BOOST_CHECK(new_node_count.leaves_count == node_count.leaves_count ||
+                    new_node_count.leaves_count == (node_count.leaves_count + 1));
+
+        node_count = new_node_count;
+    }
+}
+
+BOOST_AUTO_TEST_CASE(many_sets_in_one_leaf)
+{
+    setup_logging();
+    concurrent_bitmap bitmap;
+    nodes_count node_count{};
+    const size_t key_count = 10;
+
+    for (size_t i = 0; i < 2; ++i) {
+        std::vector<uint32_t> keys = generate_many_keys_to_same_leaf(key_count);
+        for (size_t key_idx = 0; key_idx < keys.size(); ++key_idx) {
+            nodes_count node_count_before = bitmap.get_nodes_count();
+            bitmap.set(keys[key_idx], true);
+            nodes_count node_count_after = bitmap.get_nodes_count();
+            if (key_idx > 0)
+                BOOST_CHECK(node_count_before.leaves_count == node_count_after.leaves_count);
+        }
+        nodes_count new_node_count = bitmap.get_nodes_count();
 
         BOOST_CHECK(new_node_count.leaves_count == node_count.leaves_count ||
                     new_node_count.leaves_count == (node_count.leaves_count + 1));
