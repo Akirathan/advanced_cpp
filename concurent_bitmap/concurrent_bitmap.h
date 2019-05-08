@@ -111,10 +111,7 @@ private:
         i_bitmap_node(std::size_t bit_idx_from, std::size_t bit_idx_to)
             : m_bit_idx_from{static_cast<uint8_t>(bit_idx_from)},
             m_bit_idx_to{static_cast<uint8_t>(bit_idx_to)}
-        {
-            assert(bit_idx_from < bit_idx_to);
-        }
-
+        {}
         virtual ~i_bitmap_node() = default;
         virtual void set(key_type key, value_type value) = 0;
         virtual value_type get(key_type key) const = 0;
@@ -135,36 +132,27 @@ private:
             key &= mask;
             return static_cast<std::size_t>(key);
         }
-
-        int get_children_array_size() const
-        {
-            return 1 << (m_bit_idx_to - m_bit_idx_from);
-        }
     };
 
+    template <std::size_t array_size>
     class bitmap_node : public i_bitmap_node {
     public:
         bitmap_node(const concurrent_bitmap &bitmap, std::size_t bit_idx_from, std::size_t bit_idx_to)
             : i_bitmap_node{bit_idx_from, bit_idx_to},
             m_bitmap{bitmap}
         {
-            int array_size = get_children_array_size();
-            m_children = new i_bitmap_node * [array_size];
-
-            for (int i = 0; i < array_size; ++i) {
-                m_children[i] = nullptr;
+            for (auto &&child : m_children) {
+                child = nullptr;
             }
         }
 
         ~bitmap_node() override
         {
-            int array_size = get_children_array_size();
-            for (int i = 0; i < array_size; ++i) {
-                if (m_children[i] != nullptr) {
-                    delete m_children[i];
+            for (auto &&child : m_children) {
+                if (child != nullptr) {
+                    delete child;
                 }
             }
-            delete[] m_children;
         }
 
         void set(key_type key, value_type value) override
@@ -214,11 +202,10 @@ private:
 
         std::size_t get_set_bytes() const override
         {
-            int array_size = get_children_array_size();
             std::size_t set_bytes_count = 0;
-            for (int i = 0; i < array_size; ++i) {
-                if (m_children[i] != nullptr) {
-                    set_bytes_count += m_children[i]->get_set_bytes();
+            for (i_bitmap_node *child : m_children) {
+                if (child != nullptr) {
+                    set_bytes_count += child->get_set_bytes();
                 }
             }
             return set_bytes_count;
@@ -227,10 +214,9 @@ private:
         nodes_count get_nodes_count(nodes_count accumulator) const override
         {
             accumulator.inner_nodes_count++;
-            int array_size = get_children_array_size();
-            for (int i = 0; i < array_size; ++i) {
-                if (m_children[i] != nullptr) {
-                    accumulator = m_children[i]->get_nodes_count(accumulator);
+            for (const i_bitmap_node *child : m_children) {
+                if (child != nullptr) {
+                    accumulator = child->get_nodes_count(accumulator);
                 }
             }
             return accumulator;
@@ -239,26 +225,16 @@ private:
     private:
         const concurrent_bitmap &m_bitmap;
         std::mutex m_mtx;
-        i_bitmap_node **m_children;
+        std::array<i_bitmap_node *, array_size> m_children;
     };
 
+    template <std::size_t array_size>
     class bitmap_leaf_node : public i_bitmap_node {
     public:
         bitmap_leaf_node(std::size_t bit_idx_from, std::size_t bit_idx_to)
-            : i_bitmap_node{bit_idx_from, bit_idx_to}
-        {
-            int array_size = get_children_array_size();
-
-            m_data = new std::atomic<uint8_t>[array_size];
-            for (int i = 0; i < array_size; ++i) {
-                m_data[i] = 0;
-            }
-        }
-
-        ~bitmap_leaf_node() override
-        {
-            delete[] m_data;
-        }
+            : i_bitmap_node{bit_idx_from, bit_idx_to},
+            m_data{}
+        {}
 
         void set(key_type key, value_type value) override
         {
@@ -299,10 +275,9 @@ private:
 
         std::size_t get_set_bytes() const override
         {
-            int array_size = get_children_array_size();
             std::size_t set_bytes_count = 0;
-            for (int i = 0; i < array_size; ++i) {
-                if (m_data[i] != 0)
+            for (const std::atomic<uint8_t> &data : m_data) {
+                if (data != 0)
                     set_bytes_count++;
             }
             return set_bytes_count;
@@ -316,7 +291,7 @@ private:
 
     private:
         static constexpr key_type bit_idx_mask = 0x000000007;
-        std::atomic<uint8_t> *m_data;
+        std::array<std::atomic<uint8_t>, array_size> m_data;
 
         std::size_t get_bit_index(key_type key) const
         {
@@ -346,7 +321,7 @@ private:
         }
     };
 
-    bitmap_node m_root;
+    bitmap_node<l0_array_size> m_root;
 
     std::pair<std::size_t, std::size_t> get_next_bit_indexes(std::size_t bit_idx_from, std::size_t bit_idx_to) const
     {
@@ -371,25 +346,13 @@ private:
         assert(l1_bit_range.first <= bit_idx_from && bit_idx_to <= leaf_bit_range.second);
 
         if (are_indexes_in_bitrange(l1_bit_range, bit_idx_from, bit_idx_to)) {
-#ifdef USE_BOOST
-            BOOST_LOG_TRIVIAL(debug) << "Creating L1 bitmap node, bit_idx_from="<< bit_idx_from
-                                     << ", bit_idx_to=" << bit_idx_to;
-#endif
-            return new bitmap_node{*this, bit_idx_from, bit_idx_to};
+            return new bitmap_node<l1_array_size>{*this, bit_idx_from, bit_idx_to};
         }
         else if (are_indexes_in_bitrange(l2_bit_range, bit_idx_from, bit_idx_to)) {
-#ifdef USE_BOOST
-            BOOST_LOG_TRIVIAL(debug) << "Creating L2 bitmap node, bit_idx_from="<< bit_idx_from
-                                     << ", bit_idx_to=" << bit_idx_to;
-#endif
-            return new bitmap_node{*this, bit_idx_from, bit_idx_to};
+            return new bitmap_node<l2_array_size>{*this, bit_idx_from, bit_idx_to};
         }
         else if (are_indexes_in_bitrange(leaf_bit_range, bit_idx_from, bit_idx_to)) {
-#ifdef USE_BOOST
-            BOOST_LOG_TRIVIAL(debug) << "Creating leaf node, bit_idx_from="<< bit_idx_from
-                                     << ", bit_idx_to=" << bit_idx_to;
-#endif
-            return new bitmap_leaf_node{bit_idx_from, bit_idx_to};
+            return new bitmap_leaf_node<leaf_block_array_size>{bit_idx_from, bit_idx_to};
         }
         else {
             return nullptr;
