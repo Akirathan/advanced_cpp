@@ -92,10 +92,10 @@ private:
     static constexpr std::size_t leaf_block_bits = 11;
     static_assert(l0_bits + l1_bits + l2_bits + leaf_block_bits == sizeof(key_type) * 8 - 3);
     using bit_range_t = std::pair<std::size_t, std::size_t>;
-    static constexpr bit_range_t l0_bit_range = std::make_pair(0, l0_bits);
-    static constexpr bit_range_t l1_bit_range = std::make_pair(l0_bit_range.second, l0_bit_range.second + l1_bits);
-    static constexpr bit_range_t l2_bit_range = std::make_pair(l1_bit_range.second, l1_bit_range.second + l2_bits);
-    static constexpr bit_range_t leaf_bit_range = std::make_pair(l2_bit_range.second, l2_bit_range.second + leaf_block_bits);
+    static constexpr bit_range_t leaf_bit_range = std::make_pair(3, 3 + leaf_block_bits);
+    static constexpr bit_range_t l2_bit_range = std::make_pair(leaf_bit_range.second, leaf_bit_range.second + l2_bits);
+    static constexpr bit_range_t l1_bit_range = std::make_pair(l2_bit_range.second, l2_bit_range.second + l1_bits);
+    static constexpr bit_range_t l0_bit_range = std::make_pair(l1_bit_range.second, l1_bit_range.second + l0_bits);
     static constexpr std::size_t l0_array_size = const_pow(2, l0_bits);
     static constexpr std::size_t l1_array_size = const_pow(2, l1_bits);
     static constexpr std::size_t l2_array_size = const_pow(2, l2_bits);
@@ -250,10 +250,9 @@ private:
 
         std::size_t get_bit_index(key_type key) const
         {
-            std::size_t idx = key >> (sizeof(key_type)*8 - 3);
-            idx &= bit_idx_mask;
-            assert(idx >= 0 && idx <= 7);
-            return idx;
+            key &= bit_idx_mask;
+            assert(key >= 0 && key <= 7);
+            return static_cast<std::size_t>(key);
         }
     };
 
@@ -261,7 +260,7 @@ private:
 
     std::pair<std::size_t, std::size_t> get_next_bit_indexes(std::size_t bit_idx_from, std::size_t bit_idx_to) const
     {
-        assert(l0_bit_range.first <= bit_idx_from && bit_idx_to <= l2_bit_range.second);
+        assert(leaf_bit_range.first <= bit_idx_from && bit_idx_to <= l0_bit_range.second);
 
         if (are_indexes_in_bitrange(l0_bit_range, bit_idx_from, bit_idx_to)) {
             return l1_bit_range;
@@ -279,7 +278,7 @@ private:
 
     i_bitmap_node * create_bitmap_node(std::size_t bit_idx_from, std::size_t bit_idx_to) const
     {
-        assert(l1_bit_range.first <= bit_idx_from && bit_idx_to <= leaf_bit_range.second);
+        assert(leaf_bit_range.first <= bit_idx_from && bit_idx_to <= l1_bit_range.second);
 
         if (are_indexes_in_bitrange(l1_bit_range, bit_idx_from, bit_idx_to)) {
             return new bitmap_node<l1_array_size>{*this, bit_idx_from, bit_idx_to};
